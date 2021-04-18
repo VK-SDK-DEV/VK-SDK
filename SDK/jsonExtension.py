@@ -15,6 +15,10 @@ class StructByAction(object):
         else:
             self.dictionary[key] = value
             self.parent.__setitem__(self.parent_key, self.dictionary)
+            
+    def append(self, value):
+        self.dictionary.append(value)
+        self.action(self.dictionary)
 
     def __getitem__(self, key):
         tmp_return = self.dictionary[key]

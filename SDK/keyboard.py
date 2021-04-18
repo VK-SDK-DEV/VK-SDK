@@ -1,5 +1,5 @@
 import random
-
+from SDK.jsonExtension import StructByAction
 from vk_api import keyboard
 
 
@@ -12,8 +12,12 @@ class Keyboard(keyboard.VkKeyboard):
         self.button_index = 0
         if type(buttons) is list:
             self.add_from_list(buttons)
-        else:
+        elif type(buttons) is dict:
             self.add_from_dict(buttons)
+        elif type(buttons) is str:
+            self.add_button(buttons, color = Keyboard.colors["green"])
+        elif isinstance(buttons, StructByAction):
+            self.add_from_list(buttons.dictionary)
 
     def get_keyboard(self):
         self.cleanup_empty()

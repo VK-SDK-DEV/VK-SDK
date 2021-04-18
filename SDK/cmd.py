@@ -2,6 +2,7 @@
 import difflib
 from SDK.listExtension import ListExtension
 from SDK import database
+from SDK.jsonExtension import StructByAction
 
 class AfterFunc(database.Struct):
     def __init__(self, *args, **kwargs):
@@ -10,6 +11,7 @@ class AfterFunc(database.Struct):
         self.user_id = database.Sqlite3Property("", "not null unique")
         self.after_name = ""
         self.database_class = database.ProtectedProperty(None)
+        self.args = []
         super().__init__(*args, **kwargs)
 
 command_poll = [] # MutableList<Command>
@@ -23,9 +25,9 @@ class Command(object):
         self.fixTypo = fixTypo
         self.callable = callable
 
-def command(name, fixTypo = True, aliases = ListExtension()):
+def command(name, fixTypo = True, aliases = []):
     def func_wrap(func):
-        command_poll.append(Command(name, aliases + name, fixTypo, func))
+        command_poll.append(Command(name, aliases, fixTypo, func))
     return func_wrap
 
 def after_func(name):
@@ -33,29 +35,37 @@ def after_func(name):
         after_func_poll[name] = func
     return func_wrap
 
-def set_after(name, uID):
+def set_after(name, uID, args = []):
     struct = AfterFunc(database.db, after_name = name, user_id = uID)
     struct.after_name = name
+    struct.args = args
 
-def execute_command(name, botClass):
+def execute_command(botClass):
     selected = database.db.select_one_struct("select * from after_func where user_id = ?", "after_func", [botClass.user.id])
-    #prefer names over fixed commands
+    
     if selected is not None and selected.after_name != "null":
         tmpAfterName = selected.after_name
-        resetToNull = True
+        selected.after_name = "null"
+        doNotReset = False
         if tmpAfterName in after_func_poll:
-            resetToNull = after_func_poll[tmpAfterName](botClass)
-        if resetToNull is None: resetToNull = True
-        if resetToNull:
-            selected.after_name = "null"
+            doNotReset = after_func_poll[tmpAfterName](botClass) if (isinstance(selected.args, StructByAction) and not selected.args.dictionary) or not selected.args else after_func_poll[tmpAfterName](botClass, selected.args)
+        if doNotReset is None: doNotReset = False
+        if doNotReset:
+            selected.after_name = tmpAfterName
         return
-    for cmd in command_poll:
-        if cmd.name == name or name in cmd.aliases:
+    tmpCmd = []
+    #loop over arguments 
+    for i in botClass.txtSplit:
+        tmpCmd.append(i)
+        name = " ".join(tmpCmd)
+        #prefer names over fixed commands
+        for cmd in command_poll:
+            if cmd.name == name or name in cmd.aliases:
+                cmd.callable(botClass, botClass.args)
+                return
+        for cmd in command_poll:
+            if not cmd.fixTypo: continue
+            matches = difflib.get_close_matches(name, cmd.aliases, cutoff=0.7)
+            if not matches: continue
             cmd.callable(botClass, botClass.args)
             return
-    for cmd in command_poll:
-        if not cmd.fixTypo: continue
-        matches = difflib.get_close_matches(name, cmd.aliases, cutoff=0.7)
-        if not matches: continue
-        cmd.callable(botClass, botClass.args)
-        return

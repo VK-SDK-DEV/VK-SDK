@@ -12,11 +12,10 @@ config = jsonExtension.load("config.json")
 class Main(object):
     def __init__(self):
         self.config = config
+        imports.ImportTools(["packages", "Structs"])
         self.database = database.Database(config["db_file"], config["db_backups_folder"], self)
+        self.db = self.database
         database.db = self.database
-        imports.ImportTools()
-        #generated_struct = database.Player(self.database, money=600, hi='notx')
-        #generated_struct.money = 1000000
         self.vk_session = vk_api.VkApi(token=self.config["vk_api_key"])
         self.longpoll = VkLongPoll(self.vk_session)
         self.vk = self.vk_session.get_api()
@@ -27,12 +26,14 @@ class Main(object):
         for event in self.longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me:
                 self.user = user.User(self.vk, event.user_id)
+                self.reply = self.user.write
+                self.set_after = lambda x, y = []: cmd.set_after(x, self.user.id, y)
                 self.raw_text = event.message
                 self.text = self.raw_text.lower()
-                tmp = self.text.split()
-                self.command = tmp[0]
-                self.args = tmp[1:]
-                cmd.execute_command(self.command, self)
+                self.txtSplit = self.text.split()
+                self.command = self.txtSplit[0]
+                self.args = self.txtSplit[1:]
+                cmd.execute_command(self)
 
 
 Main()

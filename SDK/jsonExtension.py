@@ -43,8 +43,16 @@ def load(file):
         return StructByAction(json.load(f), action=lambda d: save(file, d))
 
 
+def isCastToFloatAvailable(data):
+    try:
+      float(data)
+      return True
+    except ValueError:
+      return False
+
 def isDeserializable(data):
     try:
+        if isCastToFloatAvailable(data) or not (data.startswith("{") or data.startswith("[")): return {}, False
         return json.loads(data), True
     except (ValueError, TypeError):
         return {}, False

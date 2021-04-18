@@ -1,7 +1,7 @@
 class ListExtension(list):
 
-    def __init__(self, other=None):
-        super().__init__(other) if other is not None else super().__init__([])
+    def __init__(self, other=[]):
+        super().__init__(other)
 
     def find(self, lmbd, *args, **kwargs):
         for item in self:
@@ -21,4 +21,19 @@ class ListExtension(list):
 
     def append(self, value):
         super().append(value)
+        return self
+    
+    def copy(self):
+        return ListExtension(self)
+    
+    def map(self, lmbd, *args, **kwargs):
+        
+        for i, _ in enumerate(self):
+            self[i] = lmbd(*args, **kwargs)
+
+    def __add__(self, other):
+        if type(other) is list:
+            self += other
+        else:
+            self.append(other)
         return self

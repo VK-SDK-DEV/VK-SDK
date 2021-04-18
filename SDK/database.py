@@ -52,11 +52,10 @@ class Struct(object):
         Struct.class_poll.append(cls)
 
     def __setattr__(self, key: typing.Any, value: typing.Any):
-        prevValue = getattr(self, key) if hasattr(self, key) else None
         super().__setattr__(key, value)
         if hasattr(self, "database_class") and (
                 db_class := attrgetter(getattr(self, "database_class"))) is not None and key != "database_class":
-            db_class.write_struct(self, key, value, prevValue)
+            db_class.write_struct(self, key, value)
 
     @staticmethod
     def toSqlite3Row(k, v):
@@ -102,17 +101,18 @@ class ProtectedProperty(object):
     def __init__(self, x: typing.Any):
         self.value = x
 
+#TODO dont require structs to implement database_class value
 
-class Player(Struct):
-    def __init__(self, *args, **kwargs):
-        self.save_by = ProtectedProperty("money")
-        self.table_name = ProtectedProperty("yeah")
-        self.money = Sqlite3Property(0, "not null unique")
-        self.truetrue = True
-        self.inventory = {}
-        self.database_class = ProtectedProperty(None)
-        self.hi = "x"
-        super().__init__(*args, **kwargs)
+#class Player(Struct):
+#    def __init__(self, *args, **kwargs):
+#        self.save_by = ProtectedProperty("money")
+#        self.table_name = ProtectedProperty("yeah")
+#        self.money = Sqlite3Property(0, "not null unique")
+#        self.truetrue = True
+#        self.inventory = {}
+#        self.database_class = ProtectedProperty(None)
+#        self.hi = "x"
+#        super().__init__(*args, **kwargs)
 
 
 class Database(object):
@@ -156,17 +156,17 @@ class Database(object):
         self.cursor.execute(query, *args)
         return self.cursor.fetchone()
 
-    def write_struct(self, structToWrite: Struct, changedKey: typing.AnyStr, newValue: typing.Any,
-                     prevValue: typing.Any):
+    def write_struct(self, structToWrite: Struct, changedKey: typing.AnyStr, newValue: typing.Any):
         table = attrgetter(structToWrite.table_name)
         unique_field = Struct.uniqueField(Struct.table_map[table]())
-        self.execute(f"update or ignore {table} set {changedKey} = ? where {unique_field} = ?", [newValue, prevValue])
+        self.execute(f"update or ignore {table} set {changedKey} = ? where {unique_field} = ?", [newValue, getattr(structToWrite, unique_field)])
 
     def select_one_struct(self, query: typing.AnyStr, table_name: typing.AnyStr, *args, selectedStruct: Struct = None):
         table_name = attrgetter(table_name)
         struct = self.select_one(query, *args) if selectedStruct is None else selectedStruct
         myStruct = Struct.table_map[table_name]()
         unique_field = Struct.uniqueField(myStruct)
+        if struct is None: return None
         for k in struct.keys():
             v = struct[k]
             attr = v
@@ -214,3 +214,5 @@ class Database(object):
             return "text"
         elif value_type is bool:
             return "bool"
+
+db: Database = None

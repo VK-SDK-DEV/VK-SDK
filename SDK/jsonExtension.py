@@ -1,8 +1,9 @@
 import json
+from typing import Callable
 
 
 class StructByAction(object):
-    def __init__(self, initDict, parent=None, parent_key=None, action=None):
+    def __init__(self, initDict, parent = None, parent_key = None, action: Callable = lambda _: _):
         self.parent = parent
         self.dictionary = initDict
         self.parent_key = parent_key
@@ -15,10 +16,6 @@ class StructByAction(object):
         else:
             self.dictionary[key] = value
             self.parent.__setitem__(self.parent_key, self.dictionary)
-            
-    def append(self, value):
-        self.dictionary.append(value)
-        self.action(self.dictionary)
 
     def __getitem__(self, key):
         tmp_return = self.dictionary[key]
@@ -35,6 +32,28 @@ class StructByAction(object):
 
     def __repr__(self):
         return f"StructByAction({self.dictionary})"
+
+    def __delitem__(self, item):
+        del self.dictionary[item]
+        self.action(self.dictionary)
+
+    # list methods
+    def __len__(self):
+        return len(self.dictionary)
+
+    def append(self, value):
+        self.dictionary.append(value)
+        self.action(self.dictionary)
+
+    def __iadd__(self, keys):
+        self.dictionary += keys
+        self.action(self.dictionary)
+        return self
+
+    def insert(self, index, value):
+        self.dictionary.insert(index, value)
+        self.action(self.dictionary)
+        return self
 
 
 def save(file, obj):

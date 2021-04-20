@@ -16,12 +16,13 @@ def adv_getter(x: typing.Any, attr: typing.AnyStr, default: typing.Any): return 
 
 def attrgetter(x: typing.Any): return getter(x, "value")
 
+
 def formAndExpr(baseSql, argsList, getattrFrom, add):
     if type(add) is list:
         for i, k in enumerate(add):
             baseSql += f"{k}=?"
             argsList.append(getattr(getattrFrom, k))
-            if i != len(add)-1:
+            if i != len(add) - 1:
                 baseSql += " and "
     else:
         argsList.append(getattr(getattrFrom, add))
@@ -55,11 +56,11 @@ class Struct(object):
             expr = f"select * from {table_name} where "
             args = []
             expr, args = formAndExpr(expr, args, self, fields)
-            selected = database_class.select_one_struct(expr, table_name, args, fromSerialized = self)
+            selected = database_class.select_one_struct(expr, table_name, args, fromSerialized=self)
             if selected is None:
                 database_class.execute(f"insert or ignore into {table_name} ({keys}) values ({values})", final)
             else:
-                database_class.select_one_struct(expr, table_name, args, fromSerialized = self)
+                database_class.select_one_struct(expr, table_name, args, fromSerialized=self)
             self.database_class = database_class
 
     def __init_subclass__(cls):
@@ -121,7 +122,8 @@ class ProtectedProperty(object):
     def __init__(self, x: typing.Any):
         self.value = x
 
-#TODO dont require structs to implement database_class value
+
+# TODO dont require structs to implement database_class value
 
 
 class Database(object):
@@ -176,9 +178,13 @@ class Database(object):
         sql, argsList = formAndExpr(sql, argsList, structToWrite, unique_fields)
         self.execute(sql, argsList)
 
-    def select_one_struct(self, query: typing.AnyStr, table_name: typing.AnyStr, *args, selectedStruct: Struct = None, fromSerialized = None):
+    def select_one_struct(self, query: typing.AnyStr, table_name: typing.AnyStr, *args, selectedStruct: Struct = None,
+                          fromSerialized=None):
         table_name = attrgetter(table_name)
         struct = self.select_one(query, *args) if selectedStruct is None else selectedStruct
+        if not isinstance(table_name, str):
+            raise Exception(
+                f"Table name's type is not string (table_name was not provided correctly?)\n{query=}\n{args=}\n{table_name=}")
         myStruct = Struct.table_map[table_name]() if fromSerialized is None else fromSerialized
         unique_field = Struct.uniqueField(myStruct)
         if struct is None: return None
@@ -206,7 +212,7 @@ class Database(object):
         baseSql, argsList = formAndExpr(baseSql, argsList, parent_struct, unique_field)
         self.execute(baseSql, argsList)
 
-    def execute(self, query: typing.AnyStr, args = []):
+    def execute(self, query: typing.AnyStr, args=[]):
         for i, k in enumerate(args):
             if type(k) is dict or type(k) is list:
                 args[i] = jsonExtension.json.dumps(k)
@@ -234,5 +240,6 @@ class Database(object):
             return "text"
         elif value_type is bool:
             return "bool"
+
 
 db: Database = None

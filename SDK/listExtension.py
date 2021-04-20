@@ -1,6 +1,8 @@
 class ListExtension(list):
 
-    def __init__(self, other=[]):
+    def __init__(self, other=None):
+        if other is None:
+            other = []
         super().__init__(other)
 
     def find(self, lmbd, *args, **kwargs):

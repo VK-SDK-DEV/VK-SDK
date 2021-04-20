@@ -3,18 +3,12 @@ from datetime import datetime
 
 import pytz
 
-
-def now():
-    tmp = datetime.now()
-    return tmp.strftime("%Y_%m_%d_%H_%M_%S")
-
-
 class Timestamp(object):
-    def __init__(self, timestamp, sync_tz):
+    def __init__(self, timestamp, sync_tz = "Europe/Moscow"):
         self.sync_tz = sync_tz
         self.timestamp = timestamp
         zrh = pytz.timezone(self.sync_tz)
-        tztime = zrh.localize(datetime.fromtimestamp(timestamp))
+        tztime = zrh.localize(datetime.fromtimestamp(self.timestamp))
         tzfloat = (tztime - datetime(1970, 1, 1, tzinfo=pytz.utc)).total_seconds()
         self.diff = timestamp - tzfloat
 
@@ -26,3 +20,10 @@ class Timestamp(object):
 
     def passed(self):
         return time.time() >= self.get_time()
+
+    @staticmethod
+    def now():
+        return Timestamp(time.time())
+    
+    def prettyprint(self):
+        return datetime.fromtimestamp(self.get_time()).strftime("%Y/%m/%d %H:%M:%S")

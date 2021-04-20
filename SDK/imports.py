@@ -7,7 +7,9 @@ class ImportTools(object):
     ignore = ["__pycache__"]
     modules = {}
 
-    def __init__(self, paths=["packages"]):
+    def __init__(self, paths=None):
+        if paths is None:
+            paths = ["packages"]
         for path in paths:
             if not os.path.exists(path): os.makedirs(path)
             for file in os.listdir(path):

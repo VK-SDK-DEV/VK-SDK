@@ -6,7 +6,9 @@ from vk_api import keyboard
 class Keyboard(keyboard.VkKeyboard):
     colors = {"blue": "primary", "white": "default", "red": "negative", "green": "positive"}
 
-    def __init__(self, buttons=[], strategy="default", one_time=False, inline=False):
+    def __init__(self, buttons=None, strategy="default", one_time=False, inline=False):
+        if buttons is None:
+            buttons = []
         self.strategy = strategy
         super().__init__(one_time=one_time, inline=inline)
         self.button_index = 0

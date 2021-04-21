@@ -1,5 +1,7 @@
 import sqlite3
 import typing
+import re
+from moz_sql_parser import parse
 from functools import partial
 
 from SDK import (thread, timeExtension, jsonExtension)
@@ -29,12 +31,14 @@ def formAndExpr(baseSql, argsList, getattrFrom, add):
         baseSql += f"{add}=?"
     return baseSql, argsList
 
+def to_sneak_case(string):
+    return re.sub(r'(?<!^)(?=[A-Z])', '_', string).lower()
 
 # Handle all stuff behind Struct instances
 class Struct(object):
     table_map = {}
     class_poll = ListExtension([])
-    must_implement = ["table_name"]
+    must_implement = []
 
     def __init__(self, database_class=None, **kwargs):
         # creating new struct
@@ -51,12 +55,12 @@ class Struct(object):
                 values += ", " if i != length else ""
                 boolean = isinstance(value, list) or isinstance(value, dict)
                 final.append(value) if not boolean else final.append(jsonExtension.json.dumps(value))
-            table_name = attrgetter(getattr(self, 'table_name'))
+            table_name = self.get_table_name()
             fields = Struct.uniqueField(self)
             expr = f"select * from {table_name} where "
             args = []
             expr, args = formAndExpr(expr, args, self, fields)
-            selected = database_class.select_one_struct(expr, table_name, args, fromSerialized=self)
+            selected = database_class.select_one_struct(expr, args, fromSerialized=self)
             if selected is None:
                 database_class.execute(f"insert or ignore into {table_name} ({keys}) values ({values})", final)
             else:
@@ -69,7 +73,7 @@ class Struct(object):
         for x in Struct.must_implement:
             if not ListExtension(vars(instance)).includes(x):
                 raise AttributeError(f"Class \"{instance}\" must implement property \"{x}\"")
-        Struct.table_map[attrgetter(getattr(instance, "table_name"))] = cls
+        Struct.table_map[instance.get_table_name()] = cls
         Struct.class_poll.append(cls)
 
     def __setattr__(self, key: typing.Any, value: typing.Any):
@@ -104,9 +108,25 @@ class Struct(object):
             if isinstance(v, Sqlite3Property) and "unique" in v.type:
                 return [k]
 
+    def get_table_name(self):
+        if hasattr(self, "table_name"):
+            return attrgetter(getattr(self, "table_name"))
+        else:
+            return to_sneak_case(self.__class__.__name__)
+
     @staticmethod
     def getFields(cls):
         return {k: v for k, v in vars(cls).items() if not isinstance(v, ProtectedProperty) and k != "database_class"}
+
+    def __del__(self):
+        if hasattr(self, "database_class"):
+            db_class = getattr(self, "database_class")
+            table_name = self.get_table_name()
+            fields = Struct.uniqueField(self)
+            lst = []
+            sql = f"delete from {table_name} where "
+            sql, lst = formAndExpr(sql, lst, self, fields)
+            db_class.execute(sql, lst)
 
     def __repr__(self):
         return f"{self.__class__.__name__}"
@@ -123,9 +143,6 @@ class ProtectedProperty(object):
         self.value = x
 
 
-# TODO dont require structs to implement database_class value
-
-
 class Database(object):
     def __init__(self, file: typing.AnyStr, backup_folder: typing.AnyStr, bot_class, **kwargs):
         self.backup_folder = backup_folder
@@ -138,7 +155,7 @@ class Database(object):
 
         for struct in Struct.class_poll:
             struct = struct()
-            tableName = attrgetter(struct.table_name)
+            tableName = struct.get_table_name()
             fields = Struct.getFields(struct)
             self.execute(f"create table if not exists {tableName} ({Struct.toSqlite3Rows(struct)})")
             tableFields = self.get_column_names(tableName)
@@ -178,9 +195,9 @@ class Database(object):
         sql, argsList = formAndExpr(sql, argsList, structToWrite, unique_fields)
         self.execute(sql, argsList)
 
-    def select_one_struct(self, query: typing.AnyStr, table_name: typing.AnyStr, *args, selectedStruct: Struct = None,
-                          fromSerialized=None):
-        table_name = attrgetter(table_name)
+    def select_one_struct(self, query: typing.AnyStr, *args, selectedStruct: Struct = None,
+                          fromSerialized=None, table_name = None):
+        table_name = self.parse_table_name(query, table_name)
         struct = self.select_one(query, *args) if selectedStruct is None else selectedStruct
         if not isinstance(table_name, str):
             raise Exception(
@@ -225,6 +242,11 @@ class Database(object):
     def get_column_names(self, table: typing.AnyStr):
         return list(map(lambda x: x[0], self.cursor.execute(f"select * from {table}").description))
 
+    def parse_table_name(self, query, fromCached = None):
+        if fromCached is None:
+            return list(tables_in_query(query))[0]
+        return fromCached
+
     @staticmethod
     def convert_type(value):
         value_type = type(value)
@@ -243,3 +265,20 @@ class Database(object):
 
 
 db: Database = None
+
+#https://grisha.org/blog/2016/11/14/table-names-from-sql/
+def tables_in_query(sql_str):
+    q = re.sub(r"/\*[^*]*\*+(?:[^*/][^*]*\*+)*/", "", sql_str)
+    lines = [line for line in q.splitlines() if not re.match(r"^\s*(--|#)", line)]
+    q = " ".join([re.split(r"--|#", line)[0] for line in lines])
+    tokens = re.split(r"[\s)(;]+", q)
+    result = set()
+    get_next = False
+    for tok in tokens:
+        if get_next:
+            if tok.lower() not in ["", "select"]:
+                result.add(tok)
+            get_next = False
+        get_next = tok.lower() in ["from", "join"]
+
+    return result

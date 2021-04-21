@@ -8,10 +8,8 @@ from SDK.jsonExtension import StructByAction
 class AfterFunc(database.Struct):
     def __init__(self, *args, **kwargs):
         self.save_by = database.ProtectedProperty("user_id")
-        self.table_name = database.ProtectedProperty("after_func")
         self.user_id = database.Sqlite3Property("", "not null unique")
         self.after_name = ""
-        self.database_class = database.ProtectedProperty(None)
         self.args = []
         super().__init__(*args, **kwargs)
 
@@ -22,14 +20,17 @@ after_func_poll = {}  # name to callable map
 
 # data class for commands
 class Command(object):
-    def __init__(self, name, aliases, fixTypo, callable):
+    def __init__(self, name, aliases, fixTypo, callableItem):
         self.name = name
         self.aliases = aliases
         self.fixTypo = fixTypo
-        self.callable = callable
+        self.callable = callableItem
 
 
-def command(name, fixTypo=True, aliases=[]):
+def command(name, fixTypo=True, aliases=None):
+    if aliases is None:
+        aliases = []
+
     def func_wrap(func):
         command_poll.append(Command(name, aliases, fixTypo, func))
 
@@ -52,7 +53,7 @@ def set_after(name, uID, args=None):
 
 
 def execute_command(botClass):
-    selected = database.db.select_one_struct("select * from after_func where user_id = ?", "after_func",
+    selected = database.db.select_one_struct("select * from after_func where user_id = ?",
                                              [botClass.user.id])
 
     if selected is not None and selected.after_name != "null":

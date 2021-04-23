@@ -8,7 +8,6 @@ from SDK import (database, jsonExtension, user, imports, cmd)
 config = jsonExtension.load("config.json")
 
 
-
 class Main(object):
     def __init__(self):
         self.config = config
@@ -20,6 +19,7 @@ class Main(object):
         self.longpoll = VkLongPoll(self.vk_session)
         self.vk = self.vk_session.get_api()
         self.group_id = "-" + re.findall(r'\d+', self.longpoll.server)[0]
+        print("Bot started!")
         self.poll()
 
     def parse_attachments(self):
@@ -28,15 +28,18 @@ class Main(object):
             attachment_type = attachmentList['type']
             attachment = attachmentList[attachment_type]
             access_key = attachment.get("access_key")
-            self.attachments.append(f"{attachment_type}{attachment['owner_id']}_{attachment['id']}") if access_key is None\
-                 else self.attachments.append(f"{attachment_type}{attachment['owner_id']}_{attachment['id']}_{access_key}")
+            self.attachments.append(
+                f"{attachment_type}{attachment['owner_id']}_{attachment['id']}") if access_key is None \
+                else self.attachments.append(
+                f"{attachment_type}{attachment['owner_id']}_{attachment['id']}_{access_key}")
 
     def poll(self):
         for event in self.longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me:
                 self.user = user.User(self.vk, event.user_id)
                 self.reply = self.user.write
-                self.set_after = lambda x, y = []: cmd.set_after(x, self.user.id, y)
+                self.set_after = lambda x, y=[]: cmd.set_after(x, self.user.id, y)
+                self.wait = lambda x, y: cmd.wait(x, self.user.id, y)
                 self.raw_text = event.message
                 self.event = event
                 self.text = self.raw_text.lower()

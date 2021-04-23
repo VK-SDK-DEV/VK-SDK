@@ -3,6 +3,7 @@ from datetime import datetime
 
 import pytz
 
+
 class Timestamp(object):
     def __init__(self, timestamp, sync_tz = "Europe/Moscow"):
         self.sync_tz = sync_tz

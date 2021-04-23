@@ -3,7 +3,7 @@ from typing import Callable
 
 
 class StructByAction(object):
-    def __init__(self, initDict, parent = None, parent_key = None, action: Callable = lambda _: _):
+    def __init__(self, initDict, parent=None, parent_key=None, action: Callable = lambda _: _):
         self.parent = parent
         self.dictionary = initDict
         self.parent_key = parent_key
@@ -37,6 +37,9 @@ class StructByAction(object):
         del self.dictionary[item]
         self.action(self.dictionary)
 
+    def __contains__(self, item):
+        return self.dictionary.__contains__(item)
+
     # list methods
     def __len__(self):
         return len(self.dictionary)
@@ -68,10 +71,11 @@ def load(file):
 
 def isCastToFloatAvailable(data):
     try:
-      float(data)
-      return True
+        float(data)
+        return True
     except ValueError:
-      return False
+        return False
+
 
 def isDeserializable(data):
     try:

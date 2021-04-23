@@ -1,5 +1,6 @@
 # command + after func 
 import difflib
+from types import LambdaType
 
 from SDK import database
 from SDK.jsonExtension import StructByAction
@@ -27,6 +28,11 @@ class Command(object):
         self.callable = callableItem
 
 
+def wait(name, uID, function):
+    after_func(name)(function)
+    set_after(name, uID)
+
+
 def command(name, fixTypo=True, aliases=None):
     if aliases is None:
         aliases = []
@@ -37,8 +43,14 @@ def command(name, fixTypo=True, aliases=None):
     return func_wrap
 
 
+def after_func_from_lambda(name, func):
+    after_func(name)(func)
+
+
 def after_func(name):
     def func_wrap(func):
+        # if name in after_func_poll:
+        #    raise Exception(f"After function with name \"{name}\" already exists!")
         after_func_poll[name] = func
 
     return func_wrap
@@ -64,7 +76,7 @@ def execute_command(botClass):
             doNotReset = after_func_poll[tmpAfterName](botClass) if (isinstance(selected.args,
                                                                                 StructByAction) and not selected.args.dictionary) or not selected.args else \
                 after_func_poll[tmpAfterName](botClass, selected.args)
-        if doNotReset is None: doNotReset = False
+        if doNotReset is None or isinstance(after_func_poll[tmpAfterName], LambdaType): doNotReset = False
         if doNotReset:
             selected.after_name = tmpAfterName
         return

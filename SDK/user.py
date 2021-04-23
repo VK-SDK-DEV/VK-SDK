@@ -1,5 +1,6 @@
-import vk_api
 import re
+
+import vk_api
 
 
 class User(object):

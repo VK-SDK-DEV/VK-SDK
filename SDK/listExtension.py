@@ -10,6 +10,21 @@ class ListExtension(list):
             if lmbd(item, *args, **kwargs):
                 return item
 
+    def first(self):
+        return self[0]
+
+    def __getitem__(self, key):
+        if key < len(self):
+            return super().__getitem__(key)
+        return None
+
+    def filter(self, lmbd):
+        instance = ListExtension()
+        for i in self:
+            if lmbd(i):
+                instance.append(i)
+        return instance
+
     def forEach(self, lmbd):
         for item in self:
             lmbd(item)
@@ -24,12 +39,12 @@ class ListExtension(list):
     def append(self, value):
         super().append(value)
         return self
-    
+
     def copy(self):
         return ListExtension(self)
-    
+
     def map(self, lmbd, *args, **kwargs):
-        
+
         for i, _ in enumerate(self):
             self[i] = lmbd(*args, **kwargs)
 

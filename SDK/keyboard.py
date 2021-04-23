@@ -1,6 +1,8 @@
 import random
-from SDK.jsonExtension import StructByAction
+
 from vk_api import keyboard
+
+from SDK.jsonExtension import StructByAction
 
 
 class Keyboard(keyboard.VkKeyboard):

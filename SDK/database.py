@@ -1,7 +1,6 @@
+import re
 import sqlite3
 import typing
-import re
-from moz_sql_parser import parse
 from functools import partial
 
 from SDK import (thread, timeExtension, jsonExtension)
@@ -20,19 +19,17 @@ def attrgetter(x: typing.Any): return getter(x, "value")
 
 
 def formAndExpr(baseSql, argsList, getattrFrom, add):
-    if type(add) is list:
-        for i, k in enumerate(add):
-            baseSql += f"{k}=?"
-            argsList.append(getattr(getattrFrom, k))
-            if i != len(add) - 1:
-                baseSql += " and "
-    else:
-        argsList.append(getattr(getattrFrom, add))
-        baseSql += f"{add}=?"
+    for i, k in enumerate(add):
+        baseSql += f"{k}=?"
+        argsList.append(getattr(getattrFrom, k))
+        if i != len(add) - 1:
+            baseSql += " and "
     return baseSql, argsList
+
 
 def to_sneak_case(string):
     return re.sub(r'(?<!^)(?=[A-Z])', '_', string).lower()
+
 
 # Handle all stuff behind Struct instances
 class Struct(object):
@@ -42,11 +39,14 @@ class Struct(object):
 
     def __init__(self, database_class=None, **kwargs):
         # creating new struct
+        if database_class is not None:
+            self.database_class = database_class
         if hasattr(self, "database_class") and kwargs != {}:
             values = ""
             final = []
             for k, v in kwargs.items():
-                setattr(self, k, v)
+                self.setattr(k, v, False)
+
             fields = Struct.getFields(self)
             keys = ", ".join(lst := list(fields))
             length = len(lst) - 1
@@ -59,12 +59,15 @@ class Struct(object):
             fields = Struct.uniqueField(self)
             expr = f"select * from {table_name} where "
             args = []
+            for field in fields:
+                if not field in kwargs:
+                    raise Exception(f"Property {field} is required by table constructor, but wasn't provided")
             expr, args = formAndExpr(expr, args, self, fields)
             selected = database_class.select_one_struct(expr, args, fromSerialized=self)
             if selected is None:
                 database_class.execute(f"insert or ignore into {table_name} ({keys}) values ({values})", final)
             else:
-                database_class.select_one_struct(expr, table_name, args, fromSerialized=self)
+                database_class.select_one_struct(expr, args, fromSerialized=self)
             self.database_class = database_class
 
     def __init_subclass__(cls):
@@ -76,11 +79,16 @@ class Struct(object):
         Struct.table_map[instance.get_table_name()] = cls
         Struct.class_poll.append(cls)
 
-    def __setattr__(self, key: typing.Any, value: typing.Any):
+    def setattr(self, key, value, writeToDatabase=True):
         super().__setattr__(key, value)
-        if hasattr(self, "database_class") and (
-                db_class := attrgetter(getattr(self, "database_class"))) is not None and key != "database_class":
-            db_class.write_struct(self, key, value)
+        if writeToDatabase:
+
+            if hasattr(self, "database_class") and (
+                    db_class := attrgetter(getattr(self, "database_class"))) is not None and key != "database_class":
+                db_class.write_struct(self, key, value)
+
+    def __setattr__(self, key: typing.Any, value: typing.Any):
+        self.setattr(key, value, True)
 
     @staticmethod
     def toSqlite3Row(k, v):
@@ -103,7 +111,7 @@ class Struct(object):
 
     @staticmethod
     def uniqueField(cls):
-        if hasattr(cls, "save_by"): return attrgetter(cls.save_by)
+        if hasattr(cls, "save_by"): return convert_to_list_if_needed(attrgetter(cls.save_by))
         for k, v in Struct.getFields(cls).items():
             if isinstance(v, Sqlite3Property) and "unique" in v.type:
                 return [k]
@@ -118,7 +126,7 @@ class Struct(object):
     def getFields(cls):
         return {k: v for k, v in vars(cls).items() if not isinstance(v, ProtectedProperty) and k != "database_class"}
 
-    def __del__(self):
+    def destroy(self):
         if hasattr(self, "database_class"):
             db_class = getattr(self, "database_class")
             table_name = self.get_table_name()
@@ -141,6 +149,13 @@ class Sqlite3Property(object):
 class ProtectedProperty(object):
     def __init__(self, x: typing.Any):
         self.value = x
+
+
+def convert_to_list_if_needed(element):
+    if not isinstance(element, list):
+        return [element]
+    else:
+        return element
 
 
 class Database(object):
@@ -188,17 +203,20 @@ class Database(object):
         return self.cursor.fetchone()
 
     def write_struct(self, structToWrite: Struct, changedKey: typing.AnyStr, newValue: typing.Any):
-        table = attrgetter(structToWrite.table_name)
+        table = structToWrite.get_table_name()
         unique_fields = Struct.uniqueField(Struct.table_map[table]())
         sql = f"update or ignore {table} set {changedKey} = ? where "
         argsList = [newValue]
         sql, argsList = formAndExpr(sql, argsList, structToWrite, unique_fields)
         self.execute(sql, argsList)
 
-    def select_one_struct(self, query: typing.AnyStr, *args, selectedStruct: Struct = None,
-                          fromSerialized=None, table_name = None):
+    def select_one_struct(self, query: typing.AnyStr, *args: tuple or jsonExtension.StructByAction,
+                          selectedStruct: Struct = None,
+                          fromSerialized=None, table_name=None):
         table_name = self.parse_table_name(query, table_name)
         struct = self.select_one(query, *args) if selectedStruct is None else selectedStruct
+        if isinstance(args, jsonExtension.StructByAction):
+            args = args.dictionary
         if not isinstance(table_name, str):
             raise Exception(
                 f"Table name's type is not string (table_name was not provided correctly?)\n{query=}\n{args=}\n{table_name=}")
@@ -218,12 +236,12 @@ class Database(object):
         myStruct.database_class = self
         return myStruct
 
-    def select_all_structs(self, query: typing.AnyStr, table_name: typing.AnyStr, *args):
+    def select_all_structs(self, query: typing.AnyStr, *args):
         structs = ListExtension.byList(self.select(query, *args))
-        return list(map(lambda x: self.select_one_struct(query, table_name, *args, selectedStruct=x), structs))
+        return list(map(lambda x: self.select_one_struct(query, *args, selectedStruct=x), structs))
 
     def save_struct_by_action(self, table_name: typing.AnyStr, key: typing.Any, value: typing.Any,
-                              unique_field: typing.AnyStr, parent_struct: Struct, _):
+                              unique_field: typing.Iterable, parent_struct: Struct, _):
         baseSql = f"update {table_name} set {key} = ? where "
         argsList = [jsonExtension.json.dumps(value.dictionary)]
         baseSql, argsList = formAndExpr(baseSql, argsList, parent_struct, unique_field)
@@ -242,7 +260,7 @@ class Database(object):
     def get_column_names(self, table: typing.AnyStr):
         return list(map(lambda x: x[0], self.cursor.execute(f"select * from {table}").description))
 
-    def parse_table_name(self, query, fromCached = None):
+    def parse_table_name(self, query, fromCached=None):
         if fromCached is None:
             return list(tables_in_query(query))[0]
         return fromCached
@@ -250,7 +268,7 @@ class Database(object):
     @staticmethod
     def convert_type(value):
         value_type = type(value)
-        if value_type is str:
+        if value_type is str or value_type is dict or value_type is list:
             return "text"
         elif value_type is float:
             return "real"
@@ -266,7 +284,8 @@ class Database(object):
 
 db: Database = None
 
-#https://grisha.org/blog/2016/11/14/table-names-from-sql/
+
+# https://grisha.org/blog/2016/11/14/table-names-from-sql/
 def tables_in_query(sql_str):
     q = re.sub(r"/\*[^*]*\*+(?:[^*/][^*]*\*+)*/", "", sql_str)
     lines = [line for line in q.splitlines() if not re.match(r"^\s*(--|#)", line)]

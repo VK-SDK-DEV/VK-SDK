@@ -19,9 +19,16 @@ class Keyboard(keyboard.VkKeyboard):
         elif type(buttons) is dict:
             self.add_from_dict(buttons)
         elif type(buttons) is str:
-            self.add_button(buttons, color = Keyboard.colors["green"])
+            self.add_button(buttons, color=Keyboard.colors["green"])
         elif isinstance(buttons, StructByAction):
             self.add_from_list(buttons.dictionary)
+
+    @classmethod
+    def byKeyboard(cls, newKb):
+        if isinstance(newKb, cls):
+            return newKb
+        else:
+            return cls(newKb)
 
     def get_keyboard(self):
         self.cleanup_empty()

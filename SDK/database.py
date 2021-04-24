@@ -1,5 +1,6 @@
 import re
 import sqlite3
+from sqlite3 import Row
 import typing
 from functools import partial
 
@@ -47,7 +48,7 @@ class Struct(object):
             for k, v in kwargs.items():
                 self.setattr(k, v, False)
 
-            fields = Struct.getFields(self)
+            fields = self.getFields()
             keys = ", ".join(lst := list(fields))
             length = len(lst) - 1
             for i, value in enumerate(fields.values()):
@@ -56,7 +57,7 @@ class Struct(object):
                 boolean = isinstance(value, list) or isinstance(value, dict)
                 final.append(value) if not boolean else final.append(jsonExtension.json.dumps(value))
             table_name = self.get_table_name()
-            fields = Struct.uniqueField(self)
+            fields = self.uniqueField()
             expr = f"select * from {table_name} where "
             args = []
             for field in fields:
@@ -98,21 +99,19 @@ class Struct(object):
 
         return row
 
-    @staticmethod
-    def toSqlite3Rows(cls):
+    def toSqlite3Rows(self):
         row = ""
-        realDict = Struct.getFields(cls)
+        realDict = self.getFields()
         dictKeys = list(realDict)
         for i, k in enumerate(dictKeys):
-            v = cls.__dict__[k]
+            v = self.__dict__[k]
             row += Struct.toSqlite3Row(k, v)
             row += ", " if i != len(dictKeys) - 1 else ""
         return row
 
-    @staticmethod
-    def uniqueField(cls):
-        if hasattr(cls, "save_by"): return convert_to_list_if_needed(attrgetter(cls.save_by))
-        for k, v in Struct.getFields(cls).items():
+    def uniqueField(self):
+        if hasattr(self, "save_by"): return convert_to_list_if_needed(attrgetter(self.save_by))
+        for k, v in self.getFields().items():
             if isinstance(v, Sqlite3Property) and "unique" in v.type:
                 return [k]
 
@@ -122,15 +121,14 @@ class Struct(object):
         else:
             return to_sneak_case(self.__class__.__name__)
 
-    @staticmethod
-    def getFields(cls):
-        return {k: v for k, v in vars(cls).items() if not isinstance(v, ProtectedProperty) and k != "database_class"}
+    def getFields(self):
+        return {k: v for k, v in vars(self).items() if not isinstance(v, ProtectedProperty) and k != "database_class"}
 
     def destroy(self):
         if hasattr(self, "database_class"):
             db_class = getattr(self, "database_class")
             table_name = self.get_table_name()
-            fields = Struct.uniqueField(self)
+            fields = self.uniqueField()
             lst = []
             sql = f"delete from {table_name} where "
             sql, lst = formAndExpr(sql, lst, self, fields)
@@ -171,8 +169,8 @@ class Database(object):
         for struct in Struct.class_poll:
             struct = struct()
             tableName = struct.get_table_name()
-            fields = Struct.getFields(struct)
-            self.execute(f"create table if not exists {tableName} ({Struct.toSqlite3Rows(struct)})")
+            fields = struct.getFields()
+            self.execute(f"create table if not exists {tableName} ({struct.toSqlite3Rows()})")
             tableFields = self.get_column_names(tableName)
 
             for field in fields:
@@ -197,21 +195,21 @@ class Database(object):
 
     def select_one(self, query: typing.AnyStr, *args):
         if isinstance(args, list):
-            self.cursor.execute(query, list(map(str, args)))
+            self.cursor.execute(query, [str(x) for x in args])
         else:
             self.cursor.execute(query, *args)
         return self.cursor.fetchone()
 
     def write_struct(self, structToWrite: Struct, changedKey: typing.AnyStr, newValue: typing.Any):
         table = structToWrite.get_table_name()
-        unique_fields = Struct.uniqueField(Struct.table_map[table]())
+        unique_fields = Struct.table_map[table]().uniqueField()
         sql = f"update or ignore {table} set {changedKey} = ? where "
         argsList = [newValue]
         sql, argsList = formAndExpr(sql, argsList, structToWrite, unique_fields)
         self.execute(sql, argsList)
 
     def select_one_struct(self, query: typing.AnyStr, *args: tuple or jsonExtension.StructByAction,
-                          selectedStruct: Struct = None,
+                          selectedStruct: Row = None,
                           fromSerialized=None, table_name=None):
         table_name = self.parse_table_name(query, table_name)
         struct = self.select_one(query, *args) if selectedStruct is None else selectedStruct
@@ -221,7 +219,7 @@ class Database(object):
             raise Exception(
                 f"Table name's type is not string (table_name was not provided correctly?)\n{query=}\n{args=}\n{table_name=}")
         myStruct = Struct.table_map[table_name]() if fromSerialized is None else fromSerialized
-        unique_field = Struct.uniqueField(myStruct)
+        unique_field = myStruct.uniqueField()
         if struct is None: return None
         for k in struct.keys():
             v = struct[k]
@@ -238,7 +236,7 @@ class Database(object):
 
     def select_all_structs(self, query: typing.AnyStr, *args):
         structs = ListExtension.byList(self.select(query, *args))
-        return list(map(lambda x: self.select_one_struct(query, *args, selectedStruct=x), structs))
+        return [self.select_one_struct(query, *args, selectedStruct=x) for x in structs]
 
     def save_struct_by_action(self, table_name: typing.AnyStr, key: typing.Any, value: typing.Any,
                               unique_field: typing.Iterable, parent_struct: Struct, _):
@@ -258,7 +256,8 @@ class Database(object):
         return self.cursor
 
     def get_column_names(self, table: typing.AnyStr):
-        return list(map(lambda x: x[0], self.cursor.execute(f"select * from {table}").description))
+        select = self.cursor.execute(f"select * from {table}")
+        return [x[0] for x in select.description]
 
     def parse_table_name(self, query, fromCached=None):
         if fromCached is None:

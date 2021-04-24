@@ -22,9 +22,9 @@ class Timestamp(object):
     def passed(self):
         return time.time() >= self.get_time()
 
-    @staticmethod
-    def now():
-        return Timestamp(time.time())
+    @classmethod
+    def now(cls):
+        return cls(time.time())
     
     def prettyprint(self):
         return datetime.fromtimestamp(self.get_time()).strftime("%Y/%m/%d %H:%M:%S")

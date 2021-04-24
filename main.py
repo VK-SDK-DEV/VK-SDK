@@ -1,5 +1,5 @@
 import re
-
+from SDK.keyboard import Keyboard
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 
@@ -10,6 +10,7 @@ config = jsonExtension.load("config.json")
 
 class Main(object):
     def __init__(self):
+        self.attachments = []
         self.config = config
         imports.ImportTools(["packages", "Structs"])
         self.database = database.Database(config["db_file"], config["db_backups_folder"], self)
@@ -23,7 +24,6 @@ class Main(object):
         self.poll()
 
     def parse_attachments(self):
-        self.attachments = []
         for attachmentList in self.attachments_last_message:
             attachment_type = attachmentList['type']
             attachment = attachmentList[attachment_type]
@@ -33,13 +33,21 @@ class Main(object):
                 else self.attachments.append(
                 f"{attachment_type}{attachment['owner_id']}_{attachment['id']}_{access_key}")
 
+    def reply(self, *args, **kwargs):
+        return self.user.write(*args, **kwargs)
+
+    def wait(self, x, y):
+        return cmd.set_after(x, self.user.id, y)
+
+    def set_after(self, x, y=None):
+        if y is None:
+            y = []
+        cmd.set_after(x, self.user.id, y)
+
     def poll(self):
         for event in self.longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me:
                 self.user = user.User(self.vk, event.user_id)
-                self.reply = self.user.write
-                self.set_after = lambda x, y=[]: cmd.set_after(x, self.user.id, y)
-                self.wait = lambda x, y: cmd.wait(x, self.user.id, y)
                 self.raw_text = event.message
                 self.event = event
                 self.text = self.raw_text.lower()

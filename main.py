@@ -1,11 +1,22 @@
 import re
-from SDK.keyboard import Keyboard
+
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 
 from SDK import (database, jsonExtension, user, imports, cmd)
 
 config = jsonExtension.load("config.json")
+
+
+class LongPoll(VkLongPoll):
+    def listen(self):
+        while True:
+            try:
+                for event in self.check():
+                    yield event
+            except:
+                # we shall participate in large amount of tomfoolery
+                pass
 
 
 class Main(object):
@@ -17,7 +28,7 @@ class Main(object):
         self.db = self.database
         database.db = self.database
         self.vk_session = vk_api.VkApi(token=self.config["vk_api_key"])
-        self.longpoll = VkLongPoll(self.vk_session)
+        self.longpoll = LongPoll(self.vk_session)
         self.vk = self.vk_session.get_api()
         self.group_id = "-" + re.findall(r'\d+', self.longpoll.server)[0]
         print("Bot started!")

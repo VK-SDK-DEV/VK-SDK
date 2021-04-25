@@ -7,8 +7,7 @@ from functools import partial
 from SDK import (thread, timeExtension, jsonExtension)
 from SDK.listExtension import ListExtension
 
-
-def getter(x: typing.Any, attr: typing.AnyStr): return getattr(x, attr) if hasattr(x, attr) else x
+def getter(x: typing.Any, attr: typing.AnyStr): return getattr(x, attr, x)
 
 
 def adv_getter(x: typing.Any, attr: typing.AnyStr, default: typing.Any): return getattr(x, attr) if hasattr(x,
@@ -157,6 +156,9 @@ def convert_to_list_if_needed(element):
 
 
 class Database(object):
+
+    typeToTypeCache = {str: "text", dict: "str", list: "str", float: "real", type(None): "null", int: "int", bool: "bool"}
+
     def __init__(self, file: typing.AnyStr, backup_folder: typing.AnyStr, bot_class, **kwargs):
         self.backup_folder = backup_folder
         self.file = file
@@ -264,22 +266,12 @@ class Database(object):
             return list(tables_in_query(query))[0]
         return fromCached
 
+    def get_table_names(self):
+        return [x["name"] for x in self.select("SELECT name FROM sqlite_master WHERE type='table'")]
+
     @staticmethod
     def convert_type(value):
-        value_type = type(value)
-        if value_type is str or value_type is dict or value_type is list:
-            return "text"
-        elif value_type is float:
-            return "real"
-        elif value_type is None:
-            return "null"
-        elif value_type is int:
-            return "int"
-        elif value_type is dict:
-            return "text"
-        elif value_type is bool:
-            return "bool"
-
+        return Database.typeToTypeCache[type(value)]
 
 db: Database = None
 

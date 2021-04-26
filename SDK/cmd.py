@@ -1,6 +1,5 @@
 # command + after func 
 import difflib
-from types import LambdaType
 
 from SDK import database
 from SDK.jsonExtension import StructByAction
@@ -76,7 +75,7 @@ def execute_command(botClass):
             doNotReset = after_func_poll[tmpAfterName](botClass) if (isinstance(selected.args,
                                                                                 StructByAction) and not selected.args.dictionary) or not selected.args else \
                 after_func_poll[tmpAfterName](botClass, selected.args)
-        if doNotReset is None or isinstance(after_func_poll[tmpAfterName], LambdaType): doNotReset = False
+        if doNotReset is None or after_func_poll[tmpAfterName].__name__ == "<lambda>": doNotReset = False
         if doNotReset:
             selected.after_name = tmpAfterName
         return

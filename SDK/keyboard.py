@@ -34,6 +34,10 @@ class Keyboard(keyboard.VkKeyboard):
         self.cleanup_empty()
         return super().get_keyboard()
 
+    @classmethod
+    def get_empty_keyboard(cls):
+        return cls()
+
     def add_button(self, *args, **kwargs):
         if getattr(Strategies, self.strategy)(self):
             self.add_line()

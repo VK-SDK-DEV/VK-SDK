@@ -80,12 +80,15 @@ class Struct(object):
         Struct.class_poll.append(cls)
 
     def setattr(self, key, value, writeToDatabase=True):
+        prev = getattr(self, key, None)
         super().__setattr__(key, value)
         if writeToDatabase:
 
             if hasattr(self, "database_class") and (
                     db_class := attrgetter(getattr(self, "database_class"))) is not None and key != "database_class":
                 db_class.write_struct(self, key, value)
+                if isinstance(prev, jsonExtension.StructByAction):
+                    setattr(self, key, self.boundStructByAction(key, value))
 
     def __setattr__(self, key: typing.Any, value: typing.Any):
         self.setattr(key, value, True)
@@ -132,6 +135,12 @@ class Struct(object):
             sql = f"delete from {table_name} where "
             sql, lst = formAndExpr(sql, lst, self, fields)
             db_class.execute(sql, lst)
+
+    def boundStructByAction(self, key, data):
+        structByAction = jsonExtension.StructByAction(data)
+        structByAction.action = partial(self.database_class.save_struct_by_action, self.get_table_name(), key, structByAction, self.uniqueField(),
+                                                self)
+        return structByAction
 
     def __repr__(self):
         return f"{self.__class__.__name__}"
@@ -220,20 +229,16 @@ class Database(object):
         if not isinstance(table_name, str):
             raise Exception(
                 f"Table name's type is not string (table_name was not provided correctly?)\n{query=}\n{args=}\n{table_name=}")
-        myStruct = Struct.table_map[table_name]() if fromSerialized is None else fromSerialized
-        unique_field = myStruct.uniqueField()
+        myStruct: Struct = Struct.table_map[table_name]() if fromSerialized is None else fromSerialized
         if struct is None: return None
+        myStruct.database_class = self
         for k in struct.keys():
             v = struct[k]
             attr = v
             data, value = jsonExtension.isDeserializable(v)
             if value:
-                structByAction = jsonExtension.StructByAction(data)
-                structByAction.action = partial(self.save_struct_by_action, table_name, k, structByAction, unique_field,
-                                                myStruct)
-                attr = structByAction
-            setattr(myStruct, k, attr)
-        myStruct.database_class = self
+                attr = myStruct.boundStructByAction(k, data)
+            myStruct.setattr(k, attr, False) 
         return myStruct
 
     def select_all_structs(self, query: typing.AnyStr, *args):

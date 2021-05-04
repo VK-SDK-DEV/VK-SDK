@@ -82,8 +82,10 @@ class Keyboard(keyboard.VkKeyboard):
     def __add__(self, other):
         if isinstance(other, dict):
             self.add_from_dict(other)
-        else:
+        elif isinstance(other, list):
             self.add_from_list(other)
+        else:
+            self.add_button(other, color = self.get_random_color())
         return self
 
     def parse_color(self, str1):

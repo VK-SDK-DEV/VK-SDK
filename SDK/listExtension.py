@@ -10,6 +10,17 @@ class ListExtension(list):
             if lmbd(item, *args, **kwargs):
                 return item
 
+    def has(self, item, returnIndex = False): 
+        for i, iterator in enumerate(self):
+            if hasattr(iterator, "has") and callable(iterator.has):
+                if iterator.has(item):
+                    return True if not returnIndex else i
+            if iterator == item: return True if not returnIndex else i
+        return False if not returnIndex else -1
+    
+    def indexOf(self, item):
+        return self.has(item, True)
+
     def first(self):
         return self[0]
 

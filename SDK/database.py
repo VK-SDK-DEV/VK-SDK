@@ -86,9 +86,11 @@ class Struct(object):
 
             if hasattr(self, "database_class") and (
                     db_class := attrgetter(getattr(self, "database_class"))) is not None and key != "database_class":
-                db_class.write_struct(self, key, value)
                 if isinstance(prev, jsonExtension.StructByAction):
-                    setattr(self, key, self.boundStructByAction(key, value))
+                    super().__setattr__(key, self.boundStructByAction(key, value))
+                    getattr(self, key).action(None)
+                else:
+                    db_class.write_struct(self, key, value)
 
     def __setattr__(self, key: typing.Any, value: typing.Any):
         self.setattr(key, value, True)
@@ -137,6 +139,7 @@ class Struct(object):
             db_class.execute(sql, lst)
 
     def boundStructByAction(self, key, data):
+        data = adv_getter(data, "dictionary", data)
         structByAction = jsonExtension.StructByAction(data)
         structByAction.action = partial(self.database_class.save_struct_by_action, self.get_table_name(), key, structByAction, self.uniqueField(),
                                                 self)
@@ -243,7 +246,7 @@ class Database(object):
 
     def select_all_structs(self, query: typing.AnyStr, *args):
         structs = ListExtension.byList(self.select(query, *args))
-        return [self.select_one_struct(query, *args, selectedStruct=x) for x in structs]
+        return ListExtension.byList([self.select_one_struct(query, *args, selectedStruct=x) for x in structs])
 
     def save_struct_by_action(self, table_name: typing.AnyStr, key: typing.Any, value: typing.Any,
                               unique_field: typing.Iterable, parent_struct: Struct, _):

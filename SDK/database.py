@@ -7,6 +7,7 @@ from functools import partial
 from SDK import (thread, timeExtension, jsonExtension)
 from SDK.listExtension import ListExtension
 
+
 def getter(x: typing.Any, attr: typing.AnyStr): return getattr(x, attr, x)
 
 
@@ -54,20 +55,25 @@ class Struct(object):
                 values += "?"
                 values += ", " if i != length else ""
                 boolean = isinstance(value, list) or isinstance(value, dict)
-                final.append(value) if not boolean else final.append(jsonExtension.json.dumps(value))
+                final.append(value) if not boolean else final.append(
+                    jsonExtension.json.dumps(value))
             table_name = self.get_table_name()
             fields = self.uniqueField()
             expr = f"select * from {table_name} where "
             args = []
             for field in fields:
                 if not field in kwargs:
-                    raise Exception(f"Property {field} is required by table constructor, but wasn't provided")
+                    raise Exception(
+                        f"Property {field} is required by table constructor, but wasn't provided")
             expr, args = formAndExpr(expr, args, self, fields)
-            selected = database_class.select_one_struct(expr, args, fromSerialized=self)
+            selected = database_class.select_one_struct(
+                expr, args, fromSerialized=self)
             if selected is None:
-                database_class.execute(f"insert or ignore into {table_name} ({keys}) values ({values})", final)
+                database_class.execute(
+                    f"insert or ignore into {table_name} ({keys}) values ({values})", final)
             else:
-                database_class.select_one_struct(expr, args, fromSerialized=self)
+                database_class.select_one_struct(
+                    expr, args, fromSerialized=self)
             self.database_class = database_class
 
     def __init_subclass__(cls):
@@ -75,7 +81,8 @@ class Struct(object):
         instance = cls()
         for x in Struct.must_implement:
             if not ListExtension(vars(instance)).includes(x):
-                raise AttributeError(f"Class \"{instance}\" must implement property \"{x}\"")
+                raise AttributeError(
+                    f"Class \"{instance}\" must implement property \"{x}\"")
         Struct.table_map[instance.get_table_name()] = cls
         Struct.class_poll.append(cls)
 
@@ -114,7 +121,8 @@ class Struct(object):
         return row
 
     def uniqueField(self):
-        if hasattr(self, "save_by"): return convert_to_list_if_needed(attrgetter(self.save_by))
+        if hasattr(self, "save_by"):
+            return convert_to_list_if_needed(attrgetter(self.save_by))
         for k, v in self.getFields().items():
             if isinstance(v, Sqlite3Property) and "unique" in v.type:
                 return [k]
@@ -142,7 +150,7 @@ class Struct(object):
         data = adv_getter(data, "dictionary", data)
         structByAction = jsonExtension.StructByAction(data)
         structByAction.action = partial(self.database_class.save_struct_by_action, self.get_table_name(), key, structByAction, self.uniqueField(),
-                                                self)
+                                        self)
         return structByAction
 
     def __repr__(self):
@@ -169,7 +177,8 @@ def convert_to_list_if_needed(element):
 
 class Database(object):
 
-    typeToTypeCache = {str: "text", dict: "str", list: "str", float: "real", type(None): "null", int: "int", bool: "bool"}
+    typeToTypeCache = {str: "text", dict: "str", list: "str",
+                       float: "real", type(None): "null", int: "int", bool: "bool"}
 
     def __init__(self, file: typing.AnyStr, backup_folder: typing.AnyStr, bot_class, **kwargs):
         self.backup_folder = backup_folder
@@ -179,12 +188,14 @@ class Database(object):
         self.row_factory = sqlite3.Row
         self.db.row_factory = self.row_factory
         self.cursor = self.db.cursor()
+        self.tasks = []
 
         for struct in Struct.class_poll:
             struct = struct()
             tableName = struct.get_table_name()
             fields = struct.getFields()
-            self.execute(f"create table if not exists {tableName} ({struct.toSqlite3Rows()})")
+            self.execute(
+                f"create table if not exists {tableName} ({struct.toSqlite3Rows()})")
             tableFields = self.get_column_names(tableName)
 
             for field in fields:
@@ -192,20 +203,38 @@ class Database(object):
                     self.execute(
                         f"alter table {tableName} add column {Struct.toSqlite3Row(field, struct.__dict__[field])}")
 
-        thread.every(self.bot_class.config["db_backup_interval"], name="Backup")(self.backup)
+        thread.every(self.bot_class.config["db_backup_interval"], name="Backup")(
+            self.backup)
 
     def backup(self):
-        if not self.bot_class.config["db_backups"]: return
+        if not self.bot_class.config["db_backups"]:
+            return
 
         rawName = self.file.split("/")[-1]
         manager = thread.ThreadManager()
-        manager.changeInterval("Backup", self.bot_class.config["db_backup_interval"])
-        backup_table = sqlite3.connect(f"{self.backup_folder}backup_{timeExtension.now()}_{rawName}")
+        manager.changeInterval(
+            "Backup", self.bot_class.config["db_backup_interval"])
+        backup_table = sqlite3.connect(
+            f"{self.backup_folder}backup_{timeExtension.now()}_{rawName}")
         self.db.backup(backup_table)
 
-    def select(self, query: typing.AnyStr, args=[]):
+    def check_tasks(self):
+        while self.tasks != []:
+            task = self.tasks.pop()
+            task_type = task[0]
+            if task_type == "execute":
+                self.db.execute(task[1], task[2])
+
+    def select(self, query: typing.AnyStr, args=None):
+        if args is None:
+            args = []
         self.cursor.execute(query, args)
         return self.cursor.fetchall()
+
+    def create_execute_task(self, query, args=None):
+        if args is None:
+            args = []
+        self.tasks.append(("execute", query, args))
 
     def select_one(self, query: typing.AnyStr, *args):
         if isinstance(args, list):
@@ -219,21 +248,25 @@ class Database(object):
         unique_fields = Struct.table_map[table]().uniqueField()
         sql = f"update or ignore {table} set {changedKey} = ? where "
         argsList = [newValue]
-        sql, argsList = formAndExpr(sql, argsList, structToWrite, unique_fields)
+        sql, argsList = formAndExpr(
+            sql, argsList, structToWrite, unique_fields)
         self.execute(sql, argsList)
 
     def select_one_struct(self, query: typing.AnyStr, *args: tuple or jsonExtension.StructByAction,
                           selectedStruct: Row = None,
                           fromSerialized=None, table_name=None):
         table_name = self.parse_table_name(query, table_name)
-        struct = self.select_one(query, *args) if selectedStruct is None else selectedStruct
+        struct = self.select_one(
+            query, *args) if selectedStruct is None else selectedStruct
         if isinstance(args, jsonExtension.StructByAction):
             args = args.dictionary
         if not isinstance(table_name, str):
             raise Exception(
                 f"Table name's type is not string (table_name was not provided correctly?)\n{query=}\n{args=}\n{table_name=}")
-        myStruct: Struct = Struct.table_map[table_name]() if fromSerialized is None else fromSerialized
-        if struct is None: return None
+        myStruct: Struct = Struct.table_map[table_name](
+        ) if fromSerialized is None else fromSerialized
+        if struct is None:
+            return None
         myStruct.database_class = self
         for k in struct.keys():
             v = struct[k]
@@ -241,7 +274,7 @@ class Database(object):
             data, value = jsonExtension.isDeserializable(v)
             if value:
                 attr = myStruct.boundStructByAction(k, data)
-            myStruct.setattr(k, attr, False) 
+            myStruct.setattr(k, attr, False)
         return myStruct
 
     def select_all_structs(self, query: typing.AnyStr, *args):
@@ -252,10 +285,13 @@ class Database(object):
                               unique_field: typing.Iterable, parent_struct: Struct, _):
         baseSql = f"update {table_name} set {key} = ? where "
         argsList = [jsonExtension.json.dumps(value.dictionary)]
-        baseSql, argsList = formAndExpr(baseSql, argsList, parent_struct, unique_field)
+        baseSql, argsList = formAndExpr(
+            baseSql, argsList, parent_struct, unique_field)
         self.execute(baseSql, argsList)
 
-    def execute(self, query: typing.AnyStr, args=[]):
+    def execute(self, query: typing.AnyStr, args=None):
+        if args is None:
+            args = []
         for i, k in enumerate(args):
             if type(k) is dict or type(k) is list:
                 args[i] = jsonExtension.json.dumps(k)
@@ -281,13 +317,37 @@ class Database(object):
     def convert_type(value):
         return Database.typeToTypeCache[type(value)]
 
+# Databse Class designed to be used with threads, uses same settings as main database
+
+
+class ThreadedDatabse(object):
+    def __init__(self, file=None, **kwargs) -> None:
+        self.db = sqlite3.connect(db.file, **kwargs)
+        self.row_factory = sqlite3.Row
+        self.db.row_factory = self.row_factory
+
+    def execute(self, query, args=None):
+        if args is None:
+            args = []
+        db.create_execute_task(query, args)
+
+    def select(self, query, args=None):
+        self.cursor.execute(query, args)
+        return self.cursor.fetchall()
+
+    def select_one(self, query, args=None):
+        self.cursor.execute(query, args)
+        return self.cursor.fetchone()
+
+
 db: Database = None
 
 
 # https://grisha.org/blog/2016/11/14/table-names-from-sql/
 def tables_in_query(sql_str):
     q = re.sub(r"/\*[^*]*\*+(?:[^*/][^*]*\*+)*/", "", sql_str)
-    lines = [line for line in q.splitlines() if not re.match(r"^\s*(--|#)", line)]
+    lines = [line for line in q.splitlines(
+    ) if not re.match(r"^\s*(--|#)", line)]
     q = " ".join([re.split(r"--|#", line)[0] for line in lines])
     tokens = re.split(r"[\s)(;]+", q)
     result = set()

@@ -59,6 +59,7 @@ class Main(object):
     def poll(self):
         for event in self.longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                self.db.check_tasks()
                 self.user = user.User(self.vk, event.user_id)
                 self.raw_text = StringExtension(event.message.strip())
                 self.event = event

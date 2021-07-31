@@ -321,10 +321,10 @@ class Database(object):
 
 
 class ThreadedDatabse(object):
-    def __init__(self, file=None, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
         self.db = sqlite3.connect(db.file, **kwargs)
-        self.row_factory = sqlite3.Row
-        self.db.row_factory = self.row_factory
+        self.cursor = self.db.cursor()
+        self.db.row_factory = sqlite3.Row
 
     def execute(self, query, args=None):
         if args is None:
@@ -332,12 +332,13 @@ class ThreadedDatabse(object):
         db.create_execute_task(query, args)
 
     def select(self, query, args=None):
-        self.cursor.execute(query, args)
-        return self.cursor.fetchall()
+        return self.db.execute(query, args).fetchall()
 
     def select_one(self, query, args=None):
-        self.cursor.execute(query, args)
-        return self.cursor.fetchone()
+        return self.db.execute(query, args).fetchone()
+    
+    def close(self):
+        self.db.close()
 
 
 db: Database = None

@@ -28,7 +28,7 @@ class User(object):
 
     @property
     def user_name(self):
-        if re.match(r"-?\d+$", self.id):
+        if re.match(r"-?\d+$", str(self.id)):
             fetched = self._vk.users.get(user_ids=self.id)[0]
             try:
                 return f"{fetched['first_name']} {fetched['last_name']}"
@@ -36,6 +36,17 @@ class User(object):
                 return self.id
         else:
             return self.id
+    
+    @property
+    def avatar(self):
+        if re.match(r"-?\d+$", str(self.id)):
+            fetched = self._vk.users.get(user_ids=self.id, fields="photo_id")[0]
+            try:
+                return fetched.get('photo_id')
+            except:
+                return ""
+        else:
+            return ""
 
     def __getattr__(self, method):  # str8 up
         if '_' in method:

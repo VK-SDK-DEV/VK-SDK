@@ -10,14 +10,33 @@ class ListExtension(list):
             if lmbd(item, *args, **kwargs):
                 return item
 
-    def has(self, item, returnIndex = False): 
+    def __call__(self):
+        return ListExtension()
+
+    def findall(self, lmbd, *args, **kwargs):
+        lst = self()
+        for item in self:
+            if lmbd(item, *args, **kwargs):
+                lst.append(item)
+        return lst
+
+    @classmethod
+    def indexList(cls, list=None):
+        iterate = getattr(list, "dictionary", list) or cls
+        l = cls()
+        for index in range(len(iterate)):
+            l.append(index)
+        return l
+
+    def has(self, item, returnIndex=False):
         for i, iterator in enumerate(self):
             if hasattr(iterator, "has") and callable(iterator.has):
                 if iterator.has(item):
                     return True if not returnIndex else i
-            if iterator == item: return True if not returnIndex else i
+            if iterator == item:
+                return True if not returnIndex else i
         return False if not returnIndex else -1
-    
+
     def indexOf(self, item):
         return self.has(item, True)
 
@@ -55,9 +74,9 @@ class ListExtension(list):
         return ListExtension(self)
 
     def map(self, lmbd, *args, **kwargs):
-
         for i, _ in enumerate(self):
-            self[i] = lmbd(*args, **kwargs)
+            self[i] = lmbd(_, *args, **kwargs)
+        return self
 
     def __add__(self, other):
         if type(other) is list:

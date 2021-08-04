@@ -1,3 +1,4 @@
+from SDK.listExtension import ListExtension
 import random
 
 from vk_api import keyboard
@@ -14,7 +15,7 @@ class Keyboard(keyboard.VkKeyboard):
         self.strategy = strategy
         super().__init__(one_time=one_time, inline=inline)
         self.button_index = 0
-        if type(buttons) is list:
+        if isinstance(buttons, list) or isinstance(buttons, ListExtension):
             self.add_from_list(buttons)
         elif type(buttons) is dict:
             self.add_from_dict(buttons)
@@ -43,6 +44,7 @@ class Keyboard(keyboard.VkKeyboard):
             self.add_line()
         super().add_button(*args, **kwargs)
         self.button_index += 1
+        return self
 
     def cleanup_empty(self):
         for i, line in enumerate(self.lines):
@@ -53,6 +55,7 @@ class Keyboard(keyboard.VkKeyboard):
         self.cleanup_empty()
         self.button_index = 0
         super().add_line()
+        return self
 
     def add_from_list(self, arr):
         for j in arr:

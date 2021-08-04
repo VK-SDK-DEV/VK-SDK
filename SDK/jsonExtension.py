@@ -58,6 +58,9 @@ class StructByAction(object):
         self.action(self.dictionary)
         return self
 
+    def __bool__(self):
+        return len(self.dictionary) > 0 if isinstance(self.dictionary, list) else len(self.dictionary.keys()) > 0
+
 
 def save(file, obj):
     with open(file, "w") as f:

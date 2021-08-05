@@ -1,5 +1,5 @@
 class DataClass(object):
-    def __init__(self, *args, customClass = None):
+    def __init__(self, *args, customClass=None):
         self.klass = DataClass if customClass is None else customClass
         self.args = args
         for i in args:

@@ -9,7 +9,8 @@ import traceback
 
 class User(object):
     # method to insert keyword map
-    user_id_methods = {"messages.getHistory": "user_id", "users.get": "user_ids"}
+    user_id_methods = {
+        "messages.getHistory": "user_id", "users.get": "user_ids"}
 
     def __init__(self, vk, user_id, method=None):
         self._vk = vk
@@ -21,7 +22,7 @@ class User(object):
             kwargs["keyboard"] = Keyboard.byKeyboard(keyboard)
         try:
             return self._vk.messages.send(user_id=self.id, message=message, random_id=vk_api.utils.get_random_id(),
-                                      **kwargs)
+                                          **kwargs)
         except:
             traceback.print_exc()
             return
@@ -36,11 +37,12 @@ class User(object):
                 return self.id
         else:
             return self.id
-    
+
     @property
     def avatar(self):
         if re.match(r"-?\d+$", str(self.id)):
-            fetched = self._vk.users.get(user_ids=self.id, fields="photo_id")[0]
+            fetched = self._vk.users.get(
+                user_ids=self.id, fields="photo_id")[0]
             try:
                 return fetched.get('photo_id')
             except:

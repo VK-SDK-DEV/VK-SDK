@@ -32,7 +32,8 @@ class Every(threading.Thread):
     def run(self):
         self.callback(*self.args)
         while not self.event.wait(self.interval):
-            if self.onExecCallback is not None: self.onExecCallback()
+            if self.onExecCallback is not None:
+                self.onExecCallback()
             self.callback(*self.args)
 
 

@@ -7,7 +7,8 @@ from SDK.jsonExtension import StructByAction
 
 
 class Keyboard(keyboard.VkKeyboard):
-    colors = {"blue": "primary", "white": "default", "red": "negative", "green": "positive"}
+    colors = {"blue": "primary", "white": "default",
+              "red": "negative", "green": "positive"}
 
     def __init__(self, buttons=None, strategy="default", one_time=False, inline=False):
         if buttons is None:
@@ -88,7 +89,7 @@ class Keyboard(keyboard.VkKeyboard):
         elif isinstance(other, list):
             self.add_from_list(other)
         else:
-            self.add_button(other, color = self.get_random_color())
+            self.add_button(other, color=self.get_random_color())
         return self
 
     def parse_color(self, str1):

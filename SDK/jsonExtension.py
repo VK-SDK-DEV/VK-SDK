@@ -82,7 +82,8 @@ def isCastToFloatAvailable(data):
 
 def isDeserializable(data):
     try:
-        if isCastToFloatAvailable(data) or not (data.startswith("{") or data.startswith("[")): return {}, False
+        if isCastToFloatAvailable(data) or not (data.startswith("{") or data.startswith("[")):
+            return {}, False
         return json.loads(data), True
     except (ValueError, TypeError):
         return {}, False

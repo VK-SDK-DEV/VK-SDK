@@ -11,11 +11,14 @@ class ImportTools(object):
         if paths is None:
             paths = ["packages"]
         for path in paths:
-            if not os.path.exists(path): os.makedirs(path)
+            if not os.path.exists(path):
+                os.makedirs(path)
             for file in os.listdir(path):
-                if path in self.ignore: continue
+                if path in self.ignore:
+                    continue
                 thisPath = os.path.join(path, file)
-                if os.path.isdir(thisPath): continue
+                if os.path.isdir(thisPath):
+                    continue
                 fileName = os.path.splitext(file)[0]
                 spec = util.spec_from_file_location(fileName, thisPath)
                 foo = util.module_from_spec(spec)

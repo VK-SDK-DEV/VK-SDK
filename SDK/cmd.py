@@ -1,4 +1,4 @@
-# command + after func 
+# command + after func
 import difflib
 
 from SDK import database
@@ -6,12 +6,12 @@ from SDK.jsonExtension import StructByAction
 
 
 class AfterFunc(database.Struct):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self.save_by = database.ProtectedProperty("user_id")
         self.user_id = database.Sqlite3Property("", "not null unique")
         self.after_name = ""
         self.args = []
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
 
 command_poll = []  # MutableList<Command>
@@ -58,7 +58,7 @@ def after_func(name):
 def set_after(name, uID, args=None):
     if args is None:
         args = []
-    struct = AfterFunc(database.db, after_name=name, user_id=uID)
+    struct = AfterFunc(after_name=name, user_id=uID)
     struct.after_name = name
     struct.args = args
 
@@ -75,7 +75,8 @@ def execute_command(botClass):
             doNotReset = after_func_poll[tmpAfterName](botClass) if (isinstance(selected.args,
                                                                                 StructByAction) and not selected.args.dictionary) or not selected.args else \
                 after_func_poll[tmpAfterName](botClass, selected.args)
-        if doNotReset is None or after_func_poll[tmpAfterName].__name__ == "<lambda>": doNotReset = False
+        if doNotReset is None or after_func_poll[tmpAfterName].__name__ == "<lambda>":
+            doNotReset = False
         if doNotReset:
             selected.after_name = tmpAfterName
         return
@@ -90,8 +91,10 @@ def execute_command(botClass):
                 cmd.callable(botClass, botClass.args)
                 return
         for cmd in command_poll:
-            if not cmd.fixTypo: continue
+            if not cmd.fixTypo:
+                continue
             matches = difflib.get_close_matches(name, cmd.aliases, cutoff=0.7)
-            if not matches: continue
+            if not matches:
+                continue
             cmd.callable(botClass, botClass.args)
             return

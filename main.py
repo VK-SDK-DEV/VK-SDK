@@ -3,26 +3,31 @@ import re
 
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
-from geopy.geocoders import Nominatim
 from SDK.stringExtension import StringExtension
+from SDK.thread import Thread
 from SDK import (database, jsonExtension, user, imports, cmd)
 
 config = jsonExtension.load("config.json")
 
 
 class LongPoll(VkLongPoll):
+    def __init__(self, instance, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.instance = instance
     def listen(self):
         while True:
             try:
-                for event in self.check():
+                self.instance.check_tasks()
+                updates = self.check()
+                for event in updates:
                     yield event
             except:
                 # we shall participate in large amount of tomfoolery
                 pass
 
 
-class Main(object):
-    def __init__(self):
+class MainThread(Thread):
+    def run(self):
         self.config = config
         imports.ImportTools(["packages", "Structs"])
         self.database = database.Database(
@@ -30,10 +35,11 @@ class Main(object):
         self.db = self.database
         database.db = self.database
         self.vk_session = vk_api.VkApi(token=self.config["vk_api_key"])
-        self.longpoll = LongPoll(self.vk_session)
+        self.longpoll = LongPoll(self, self.vk_session)
         self.vk = self.vk_session.get_api()
         self.group_id = "-" + re.findall(r'\d+', self.longpoll.server)[0]
         print("Bot started!")
+        super().__init__(name="Main")
         self.poll()
 
     def parse_attachments(self):
@@ -66,7 +72,6 @@ class Main(object):
     def poll(self):
         for event in self.longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                self.db.check_tasks()
                 self.attachments = ListExtension()
                 self.sticker_id = None
                 self.user = user.User(self.vk, event.user_id)
@@ -85,4 +90,6 @@ class Main(object):
 
 
 if __name__ == "__main__":
-    Main()
+    _thread = MainThread()
+    _thread.start()
+    _thread.join()

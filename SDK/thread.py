@@ -4,27 +4,51 @@ from SDK import listExtension
 
 
 class ThreadManager(object):
-    thread_poll = listExtension.ListExtension([])
+    thread_poll = listExtension.ListExtension()
+    
+    @classmethod
+    def get_main_thread(cls):
+        return cls.threadByName("Main")
 
-    def threadByName(self, name):
-        return self.thread_poll.find(lambda item: item.name == name)
+    @classmethod
+    def threadByName(cls, name):
+        return cls.thread_poll.find(lambda item: item.name == name)
 
     def changeInterval(self, name, newInterval):
         thread = self.threadByName(name)
         thread.interval = newInterval
 
+    @classmethod
+    def create_task(cls, name, task, *args, **kwargs):
+        thread = cls.threadByName(name)
+        thread.create_task(task, *args, **kwargs)
+
     def __getitem__(self, key):
         return self.threadByName(key)
 
 
-class Every(threading.Thread):
+class Thread(threading.Thread):
+    def __init__(self, *args, **kwargs) -> None:
+        ThreadManager.thread_poll.append(self)
+        self.tasks = []
+        super().__init__(*args, **kwargs)
+
+    def create_task(self, task, *args, **kwargs):
+        self.tasks.append((task, args, kwargs))
+
+    def check_tasks(self):
+        while self.tasks:
+            task = self.tasks.pop(0)
+            task[0](*task[1], **task[2])
+
+
+class Every(Thread):
     def __init__(self, callback, interval, *args, onExecCallback=None, **kwargs):
         self.callback = callback
         self.interval = interval
         self.event = threading.Event()
         self.onExecCallback = onExecCallback
         self.args = args
-        ThreadManager.thread_poll.append(self)
         super().__init__(**kwargs)
         self.start()
 
@@ -34,6 +58,7 @@ class Every(threading.Thread):
         while not self.event.wait(self.interval):
             if self.onExecCallback is not None:
                 self.onExecCallback()
+            self.check_tasks()
             self.callback(*self.args)
 
 

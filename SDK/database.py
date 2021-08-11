@@ -194,7 +194,6 @@ class Database(object):
         self.row_factory = sqlite3.Row
         self.db.row_factory = self.row_factory
         self.cursor = self.db.cursor()
-        self.tasks = []
 
         for struct in Struct.class_poll:
             struct = struct()
@@ -224,13 +223,6 @@ class Database(object):
             f"{self.backup_folder}backup_{timeExtension.now()}_{rawName}")
         self.db.backup(backup_table)
 
-    def check_tasks(self):
-        while self.tasks != []:
-            task = self.tasks.pop()
-            task_type = task[0]
-            if task_type == "execute":
-                self.db.execute(task[1], task[2])
-
     def select(self, query: typing.AnyStr, args=None):
         if args is None:
             args = []
@@ -240,7 +232,7 @@ class Database(object):
     def create_execute_task(self, query, args=None):
         if args is None:
             args = []
-        self.tasks.append(("execute", query, args))
+        thread.ThreadManager.get_main_thread().create_task(db.execute, query, args)
 
     def select_one(self, query: typing.AnyStr, *args):
         if isinstance(args, list):

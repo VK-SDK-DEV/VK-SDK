@@ -1,5 +1,5 @@
 import inspect
-from SDK.dataClass import DataClass
+from .dataClass import DataClass
 
 
 # kotlin-like enums

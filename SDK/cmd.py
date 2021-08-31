@@ -1,8 +1,8 @@
 # command + after func
 import difflib
 import inspect
-from SDK import database
-from SDK.jsonExtension import StructByAction
+from . import database
+from .jsonExtension import StructByAction
 
 
 class AfterFunc(database.Struct):

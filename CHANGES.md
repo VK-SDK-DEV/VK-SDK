@@ -1,3 +1,9 @@
+# v1.3
+- Autocreate path for database
+- Use relative imports
+- jsonExtension.load(file) -> jsonExtension.load(file, ident) for pretty json output later
+- StructByAction is now iterable
+
 # v1.2
 - Add one_time parameter to ThreadedStruct constructor: don't cache created database in thread manager 
 - Add one_time parameter to ThreadedDatabase constructor: -//-

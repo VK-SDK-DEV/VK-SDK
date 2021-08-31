@@ -1,6 +1,6 @@
 import threading
 
-from SDK import listExtension
+from . import listExtension
 
 
 class ThreadManager(object):

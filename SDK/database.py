@@ -1,4 +1,5 @@
 import re
+import os
 import sqlite3
 from sqlite3 import Row
 import threading
@@ -188,6 +189,9 @@ class Database(object):
 
     def __init__(self, file: typing.AnyStr, backup_folder: typing.AnyStr, bot_class, **kwargs):
         self.backup_folder = backup_folder
+        folder = os.path.split(file)[0]
+        if not os.path.exists(folder):
+            os.makedirs(folder)
         self.file = file
         self.bot_class = bot_class
         self.db = sqlite3.connect(file, **kwargs)

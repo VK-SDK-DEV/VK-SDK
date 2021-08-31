@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Callable
 
 
@@ -23,6 +24,9 @@ class StructByAction(object):
             return StructByAction(tmp_return, parent=self, parent_key=key, action=self.action)
         else:
             return tmp_return
+
+    def __iter__(self):
+        return self.dictionary.__iter__()
 
     def get(self, key):
         return self.dictionary[key]
@@ -62,14 +66,21 @@ class StructByAction(object):
         return len(self.dictionary) > 0 if isinstance(self.dictionary, list) else len(self.dictionary.keys()) > 0
 
 
-def save(file, obj):
-    with open(file, "w") as f:
-        json.dump(obj, f)
+def save(file, obj, indent=None):
+    with open(file, "w", encoding="utf-8") as f:
+        json.dump(obj, f, indent=indent)
 
 
-def load(file):
-    with open(file) as f:
-        return StructByAction(json.load(f), action=lambda d: save(file, d))
+def load(file, indent=None):
+    with open(file, encoding="utf-8") as f:
+        return StructByAction(json.load(f), action=lambda d: save(file, d, indent))
+
+
+def loadAdvanced(file, ident=None, content=None):
+    if content is not None and not os.path.exists(file):
+        with open(file, "w", encoding="utf-8") as f:
+            f.write(content)
+    return load(file, ident)
 
 
 def isCastToFloatAvailable(data):

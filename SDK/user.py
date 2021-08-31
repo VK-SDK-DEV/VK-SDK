@@ -1,4 +1,4 @@
-from SDK.keyboard import Keyboard
+from .keyboard import Keyboard
 import vk_api
 
 

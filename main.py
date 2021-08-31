@@ -14,6 +14,7 @@ class LongPoll(VkLongPoll):
     def __init__(self, instance, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.instance = instance
+
     def listen(self):
         while True:
             try:

@@ -1,4 +1,8 @@
 class ListExtension(list):
+    def __new__(cls, other=None):
+        if isinstance(other, cls):
+            return other
+        return super().__new__(cls)
 
     def __init__(self, other=None):
         if other is None:
@@ -9,6 +13,14 @@ class ListExtension(list):
         for item in self:
             if lmbd(item, *args, **kwargs):
                 return item
+
+    def join(self, separator: str, prefix="", postfix=""):
+        string = ""
+        for iterable, item in enumerate(self):
+            string = f"{string}{prefix}{item}{postfix}"
+            if iterable + 1 != len(self):
+                string += separator
+        return string
 
     def __call__(self):
         return ListExtension()
@@ -79,10 +91,14 @@ class ListExtension(list):
     def copy(self):
         return ListExtension(self)
 
-    def map(self, lmbd, *args, **kwargs):
+    def map(self, lmbd, copy=False, *args, **kwargs):
+        save = self if not copy else self()
         for i, _ in enumerate(self):
-            self[i] = lmbd(_, *args, **kwargs)
-        return self
+            if copy:
+                save.append(lmbd(_, *args, **kwargs))
+            else:
+                save[i] = lmbd(_, *args, **kwargs)
+        return save
 
     def __add__(self, other):
         if type(other) is list:

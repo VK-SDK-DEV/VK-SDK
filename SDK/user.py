@@ -1,5 +1,6 @@
 from .keyboard import Keyboard
 import vk_api
+from .cmd import set_after
 
 
 class User(object):
@@ -24,7 +25,7 @@ class User(object):
         self._method = method
         self.id = user_id
 
-    def write(self, message, keyboard=None, **kwargs):
+    def write(self, message, keyboard=None, after=None, after_args=None, **kwargs):
         if keyboard is not None:
             kwargs["keyboard"] = Keyboard.byKeyboard(keyboard)
         try:
@@ -32,6 +33,9 @@ class User(object):
                                           **kwargs)
         except:
             return
+        finally:
+            if after is not None:
+                set_after(after, self.id, after_args)
 
     def __getattr__(self, method):  # str8 up
         if '_' in method:

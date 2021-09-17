@@ -1,17 +1,16 @@
 # command + after func
 import difflib
 import inspect
+
 from . import database
 from .jsonExtension import StructByAction
 
 
 class AfterFunc(database.Struct):
-    def __init__(self, **kwargs):
-        self.save_by = database.ProtectedProperty("user_id")
-        self.user_id = database.Sqlite3Property("", "not null unique")
-        self.after_name = ""
-        self.args = []
-        super().__init__(**kwargs)
+    save_by = "user_id"
+    user_id = database.Sqlite3Property("", "not null unique")
+    after_name = ""
+    args = []
 
 
 command_poll = []  # MutableList<Command>
@@ -41,6 +40,7 @@ def command(name, fixTypo=True, aliases=None):
 
     return func_wrap
 
+start_command = command("начать", aliases=["start"])
 
 def after_func_from_lambda(name, func):
     after_func(name)(func)
@@ -82,7 +82,7 @@ def execute_command(botClass):
             doNotReset = after_func_poll[tmpAfterName](botClass) if (isinstance(selected.args,
                                                                                 StructByAction) and not selected.args.dictionary) or not selected.args else \
                 after_func_poll[tmpAfterName](botClass, selected.args)
-        if doNotReset is None or after_func_poll[tmpAfterName].__name__ == "<lambda>":
+        if doNotReset is None or after_func_poll[tmpAfterName].__name__ == "<lambda>" or not isinstance(doNotReset, bool):
             doNotReset = False
         if doNotReset:
             selected.after_name = tmpAfterName

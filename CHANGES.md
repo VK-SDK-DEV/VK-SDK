@@ -1,3 +1,14 @@
+# v1.4
+- Every class now can behave like Thread class
+- thread.threaded - add this decorator to execute function in a thread
+- thread.requires_start - wait until bot will be started and execute function  
+- Add: after keyword to user.write: set after func after write
+- Replace: ThreadedStruct and ThreadedDatabase with more elegant threading solution
+- ListExtension.join(separator, prefix, postix) - same behaviour as separator.join(Iterable)
+- Rewrite Struct
+- Add: events
+- Add: setExtension - += operation for sets
+
 # v1.3
 - Autocreate path for database
 - Use relative imports

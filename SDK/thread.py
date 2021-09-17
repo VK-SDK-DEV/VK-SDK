@@ -1,5 +1,5 @@
 import threading
-
+from . import events
 from . import listExtension
 
 
@@ -42,10 +42,36 @@ class Thread(threading.Thread):
             task[0](*task[1], **task[2])
 
 
+def requires_start(func):
+    def call_wrap(*args, **kwargs):
+        if main_thread is None or not getattr(main_thread, "started", False):
+            @events.once("start")
+            def _():
+                func(*args, **kwargs)
+        else:
+            func(*args, **kwargs)
+
+    return call_wrap
+
+
+def threaded(*args, **kwargs):
+    def func_wrap(func):
+        def call_wrap(*a, **b):
+            Thread(*args, **kwargs, target=func, args=a, kwargs=b).start()
+        return call_wrap
+    return func_wrap
+
+
 class Every(Thread):
-    def __init__(self, callback, interval, *args, onExecCallback=None, **kwargs):
-        self.callback = callback
+    def __init__(self, interval, *args, onExecCallback=None, callback=None, **kwargs):
+        if callback is not None:
+            self.callback = callback
+        elif hasattr(self, "loop"):
+            self.callback = self.loop
+        else:
+            raise Exception("Callback wasn't provided.")
         self.interval = interval
+        self.stopped = False
         self.event = threading.Event()
         self.onExecCallback = onExecCallback
         self.args = args
@@ -55,7 +81,7 @@ class Every(Thread):
     # override
     def run(self):
         self.callback(*self.args)
-        while not self.event.wait(self.interval):
+        while not self.event.wait(self.interval) and not self.stopped:
             if self.onExecCallback is not None:
                 self.onExecCallback()
             self.check_tasks()
@@ -64,6 +90,13 @@ class Every(Thread):
 
 def every(interval, *myArgs, callback=None, **myKwargs):
     def func_wrap(func):
-        return Every(func, interval, *myArgs, onExecCallback=callback, **myKwargs)
+        return Every(interval, *myArgs, onExecCallback=callback, **myKwargs, callback=func)
 
     return func_wrap
+
+main_thread = None
+
+@events.once("start")
+def update_main_thread():
+    global main_thread
+    main_thread = ThreadManager.threadByName("Main")

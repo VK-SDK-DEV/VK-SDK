@@ -2,6 +2,7 @@ from SDK.listExtension import ListExtension
 import re
 
 import vk_api
+from SDK import events
 from vk_api.longpoll import VkLongPoll, VkEventType
 from SDK.stringExtension import StringExtension
 from SDK.thread import Thread
@@ -39,6 +40,10 @@ class MainThread(Thread):
         self.longpoll = LongPoll(self, self.vk_session)
         self.vk = self.vk_session.get_api()
         self.group_id = "-" + re.findall(r'\d+', self.longpoll.server)[0]
+        struct = database.DummyStruct(user_id = 0, money = 1000232)
+        struct.this_cat_jsut["j"] = False
+        events.emit("start")
+        self.started = True
         print("Bot started!")
         super().__init__(name="Main")
         self.poll()

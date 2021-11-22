@@ -1,58 +1,56 @@
+from vk_api.exceptions import ApiError
+
+from SDK.methodExecutor import MethodExecutor
 from .keyboard import Keyboard
 import vk_api
+from . import thread
 from .cmd import set_after
 
-
-class User(object):
+class User(MethodExecutor):
     # method to insert keyword map
     user_id_methods = {
         "messages.getHistory": "user_id", "users.get": "user_ids"}
 
-    def __new__(cls, vk, user_id, method=None):
+    def __new__(cls, user_id, fields = None, **kwargs):
         try:
-            get = vk.users.get(user_ids=user_id, fields="photo_id")[0]
+            if fields is None:
+                fields = "photo_id,photo_50"
+            vk = kwargs.get("vk")
             instance = super(User, cls).__new__(cls)
+            if vk is None:
+                vk = thread.main_thread.vk
+                kwargs["vk"] = vk
+            instance.vk = vk
+            get = vk.users.get(user_ids=user_id, fields=fields)[0]
             instance.request = get
-            instance.avatar = f"photo{get['photo_id']}" if get.get(
-                'photo_id') is not None else ""
-            instance.user_name = f"{get['first_name']} {get['last_name']}"
             return instance
         except:
             return None
 
-    def __init__(self, vk, user_id, method=None):
-        self._vk = vk
-        self._method = method
-        self.id = user_id
+    def __init__(self, user_id=None, fields = None, vk=None):
+        self.avatar = f"photo{self.request['photo_id']}" if self.request.get(
+            'photo_id') is not None else ""
+        self.user_name = f"{self.request['first_name']} {self.request['last_name']}"
+        self.id = str(self.request["id"])
+
+        super().__init__(self.vk, self.on_method_execute)
 
     def write(self, message, keyboard=None, after=None, after_args=None, **kwargs):
         if keyboard is not None:
             kwargs["keyboard"] = Keyboard.byKeyboard(keyboard)
         try:
-            return self._vk.messages.send(user_id=self.id, message=message, random_id=vk_api.utils.get_random_id(),
-                                          **kwargs)
-        except:
-            return
+            self._vk.messages.send(user_id=self.id, message=message, random_id=vk_api.utils.get_random_id(),
+                                   **kwargs)
+        except ApiError:
+            pass
         finally:
             if after is not None:
                 set_after(after, self.id, after_args)
 
-    def __getattr__(self, method):  # str8 up
-        if '_' in method:
-            m = method.split('_')
-            method = m[0] + ''.join(i.title() for i in m[1:])
-        return User(
-            self._vk,
-            self.id,
-            (self._method + '.' if self._method else '') + method
-        )
+    def on_method_execute(self, method, kwargs):
+        if method in User.user_id_methods:
+            kwargs[User.user_id_methods[method]] = self.id
 
-    def __call__(self, **kwargs):
-        if self._method in User.user_id_methods:
-            kwargs[User.user_id_methods[self._method]] = self.id
-        self._vk._method = self._method
-        tmpReturn = self._vk.__call__(**kwargs)
-        # set to null
-        self._vk._method = None
-        self._method = None
-        return tmpReturn
+    @property
+    def mention(self):
+        return f"@id{self.id}({self.user_name})"

@@ -21,7 +21,7 @@ class Keyboard(keyboard.VkKeyboard):
         elif type(buttons) is dict:
             self.add_from_dict(buttons)
         elif type(buttons) is str:
-            self.add_button(buttons, color=Keyboard.colors["green"])
+            self.add_button(buttons, color="green")
         elif isinstance(buttons, StructByAction):
             self.add_from_list(buttons.dictionary)
 
@@ -43,6 +43,18 @@ class Keyboard(keyboard.VkKeyboard):
     def add_button(self, *args, **kwargs):
         if getattr(Strategies, self.strategy)(self):
             self.add_line()
+        args = list(args)
+        if len(args) >= 2:
+            color = args[1]
+            del args[1]
+        else:
+            color = kwargs.get("color")
+        if color is not None:
+            if color in self.colors:
+                color = self.colors[color]
+        else:
+            color = self.colors["white"]
+        kwargs["color"] = color
         super().add_button(*args, **kwargs)
         self.button_index += 1
         return self
@@ -67,14 +79,17 @@ class Keyboard(keyboard.VkKeyboard):
                 self.add_line()
 
     def add_from_dict(self, d):
+        if (strategy := d.get('strategy')) is not None:
+            self.strategy = strategy
+            del d['strategy']
         for k, v in d.items():
             if v == "line":
                 self.add_line()
             else:
-                self.add_button(k, self.parse_color(v))
+                self.add_button(k, v)
 
     def get_random_color(self):
-        return random.choice(list(self.colors.values()))
+        return random.choice(list(self.colors))
 
     def __repr__(self):
         return self.get_keyboard()
@@ -92,9 +107,6 @@ class Keyboard(keyboard.VkKeyboard):
             self.add_button(other, color=self.get_random_color())
         return self
 
-    def parse_color(self, str1):
-        return self.colors[str1]
-
 
 class Strategies(object):
     @staticmethod
@@ -104,3 +116,7 @@ class Strategies(object):
     @staticmethod
     def insert_lines(_):
         return True
+
+    @staticmethod
+    def max_two_buttons(keyboard: Keyboard):
+        return keyboard.button_index % 2 == 0

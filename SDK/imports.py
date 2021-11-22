@@ -23,4 +23,4 @@ class ImportTools(object):
                 spec = util.spec_from_file_location(fileName, thisPath)
                 foo = util.module_from_spec(spec)
                 spec.loader.exec_module(foo)
-                self.modules.update({path: foo})
+                self.modules.update({fileName: foo})

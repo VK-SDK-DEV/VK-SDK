@@ -13,8 +13,23 @@ class AfterFunc(database.Struct):
     args = []
 
 
+class AbstractAfterFunc(object):
+    def __new__(cls, name, func=None):
+        if (instance := after_func_poll.get(name)) is None:
+            return super().__new__(cls)
+        return instance
+
+    def __init__(self, name, func=None) -> None:
+        if after_func_poll.get(name) is None:
+            self.name = name
+            self.text_matchers = {}
+            after_func_poll[name] = self
+        if func is not None:
+            self.text_matchers["default"] = func
+
+
 command_poll = []  # MutableList<Command>
-after_func_poll = {}  # name to callable map
+after_func_poll = {}
 
 
 # data class for commands
@@ -40,7 +55,9 @@ def command(name, fixTypo=True, aliases=None):
 
     return func_wrap
 
-start_command = command("начать", aliases=["start"])
+
+start_command = command("начать", aliases=["start", "меню", "бот"])
+
 
 def after_func_from_lambda(name, func):
     after_func(name)(func)
@@ -48,10 +65,14 @@ def after_func_from_lambda(name, func):
 
 def after_func(name):
     def func_wrap(func):
-        # if name in after_func_poll:
-        #    raise Exception(f"After function with name \"{name}\" already exists!")
-        after_func_poll[name] = func
+        AbstractAfterFunc(name, func)
+    return func_wrap
 
+
+def after_text_matcher(name, text):
+    def func_wrap(func):
+        function = AbstractAfterFunc(name)
+        function.text_matchers[text] = func
     return func_wrap
 
 
@@ -79,13 +100,17 @@ def execute_command(botClass):
         selected.after_name = "null"
         doNotReset = False
         if tmpAfterName in after_func_poll:
-            doNotReset = after_func_poll[tmpAfterName](botClass) if (isinstance(selected.args,
-                                                                                StructByAction) and not selected.args.dictionary) or not selected.args else \
-                after_func_poll[tmpAfterName](botClass, selected.args)
-        if doNotReset is None or after_func_poll[tmpAfterName].__name__ == "<lambda>" or not isinstance(doNotReset, bool):
-            doNotReset = False
-        if doNotReset:
-            selected.after_name = tmpAfterName
+            after_func = after_func_poll[tmpAfterName]
+            call = after_func.text_matchers.get(
+                botClass.text) or after_func.text_matchers.get("default")
+            if call is not None:
+                doNotReset = call(botClass) if (isinstance(selected.args,
+                                                           StructByAction) and not selected.args.dictionary) or not selected.args else \
+                    call(botClass, selected.args)
+                if doNotReset is None or call.__name__ == "<lambda>" or not isinstance(doNotReset, bool):
+                    doNotReset = False
+                if doNotReset:
+                    selected.after_name = tmpAfterName
         return
     tmpCmd = []
     # loop over arguments

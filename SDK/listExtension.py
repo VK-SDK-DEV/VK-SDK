@@ -62,6 +62,8 @@ class ListExtension(list):
         return self[0]
 
     def __getitem__(self, key):
+        if isinstance(key, slice):
+            return super().__getitem__(key)
         if key < len(self):
             return super().__getitem__(key)
         return None

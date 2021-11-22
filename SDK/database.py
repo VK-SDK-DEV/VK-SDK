@@ -31,7 +31,7 @@ def to_sneak_case(string):
 # Handle all stuff behind Struct instances
 def convert_to_list_if_needed(element):
     if not isinstance(element, list):
-        return ListExtension(element)
+        return ListExtension([element])
     else:
         return ListExtension(element)
 
@@ -71,9 +71,13 @@ class Struct(object):
                 expr, args = formAndExpr(expr, args, n, self.save_by)
                 old_struct = db.select_one_struct(expr, args)
                 if old_struct is None:
-                    kwargs_values = ListExtension(kwargs.values())
-                    insert_string = f"insert or ignore into {self.table_name} ({','.join(kwargs.keys())}) values ({kwargs_values.map(lambda _: '?', copy=True).join(',')})"
-                    db.execute(insert_string, kwargs_values)
+                    keys, values = ListExtension(), ListExtension()
+                    vrs = self.vars()
+                    for key, value in vrs.items():
+                        keys.append(key)
+                        values.append(kwargs[key]) if kwargs.get(key) is not None else values.append(value)
+                    insert_string = f"insert or ignore into {self.table_name} ({','.join(keys)}) values ({values.map(lambda _: '?', copy=True).join(',')})"
+                    db.execute(insert_string, values)
                     variables = self.vars()
                     self.fill(variables.keys(), variables)
                 else:
@@ -85,8 +89,10 @@ class Struct(object):
                         old_struct.setattr(k, v)
                     variables = old_struct.vars()
                     self.fill(variables.keys(), variables)
+                self.initialized = True
 
         super().__init__()
+
 
     def boundStructByAction(self, key, data):
         data = getattr(data, "dictionary", data)
@@ -116,30 +122,31 @@ class Struct(object):
             super().__setattr__(key, value)
 
     def vars(cls):
-        return {k: v for k, v in vars(cls).items() if not k.startswith(
-                "__") and k not in ["table_name", "save_by", "initialized"] and not callable(v)}
+        attrs = {k: getattr(cls, k) for k in dir(cls)}
+        return {k: v for k, v in attrs.items() if not k.startswith(
+                "__") and k not in ["table_name", "save_by", "initialized", "table_map"] and not callable(v)}
 
     def fill(self, keys, getitemfrom):
         for k in keys:
             v = getitemfrom[k]
             attr = v
             data, value = jsonExtension.isDeserializable(v)
-            if value or isinstance(v, list) or isinstance(v, dict):
+            if isinstance(v, list) or isinstance(v, dict):
+                attr = self.boundStructByAction(k, v)
+            elif value:
                 attr = self.boundStructByAction(k, data)
             if isinstance(getattr(self, k), bool):
-                attr = bool(attr)
+                attr = self.str2bool(attr)
             self.setattr(k, attr, False)
 
     def __setattr__(self, name: str, value: Any) -> None:
         self.setattr(name, value)
 
-
-class DummyStruct(Struct):
-    table_name = "dummy_struct"
-    save_by = ["user_id"]
-    user_id = 0
-    money = 0
-    this_cat_jsut = {}
+    def str2bool(self, v):
+        if hasattr(v, "lower"):
+            return v.lower() in ("true", "1")
+        else:
+            return v
 
 
 class Sqlite3Property(object):
@@ -181,6 +188,10 @@ class Database(object):
                 if field not in table_fields:
                     self.execute(
                         f"alter table {struct.table_name} add column {rows[iterable]}")
+            for field in list(table_fields):
+                if field not in variables:
+                    self.execute(
+                        f"alter table {struct.table_name} drop column {field}")
 
         thread.every(self.bot_class.config["db_backup_interval"], name="Backup")(
             self.backup)

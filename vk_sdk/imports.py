@@ -5,12 +5,15 @@ from importlib import util
 
 class ImportTools(object):
     ignore = ["__pycache__"]
+    imported = []
     modules = {}
 
     def __init__(self, paths=None):
         if paths is None:
             paths = ["packages"]
         for path in paths:
+            if path in self.imported:
+                continue
             if not os.path.exists(path):
                 os.makedirs(path)
             for file in os.listdir(path):

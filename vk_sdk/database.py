@@ -5,8 +5,8 @@ from collections import namedtuple
 from typing import AnyStr, Any, Iterable
 from sqlite3 import Row
 
-from SDK import jsonExtension, thread, timeExtension
-from SDK.listExtension import ListExtension
+from . import jsonExtension, thread, timeExtension
+from .listExtension import ListExtension
 
 
 def getter(x: Any, attr: AnyStr): return getattr(x, attr, x)

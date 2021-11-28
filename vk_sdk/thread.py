@@ -96,7 +96,7 @@ def every(interval, *myArgs, callback=None, **myKwargs):
 
 main_thread = None
 
-@events.once("start")
+@events.once("pre_start")
 def update_main_thread():
     global main_thread
     main_thread = ThreadManager.threadByName("Main")

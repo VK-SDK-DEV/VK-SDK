@@ -79,6 +79,7 @@ def load(file, indent=None):
 def loadAdvanced(file, ident=None, content=None):
     if content is not None and not os.path.exists(file):
         with open(file, "w", encoding="utf-8") as f:
+            content = json.dumps(content) if isinstance(content, dict) else content
             f.write(content)
     return load(file, ident)
 

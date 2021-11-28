@@ -1,14 +1,10 @@
-from SDK import events
-from SDK import imports, cmd
-from SDK.lp import BotLongPoll
+from vk_sdk import cmd
+from vk_sdk.lp import BotLongPoll
 
 class MainThread(BotLongPoll):
     def run(self):
         super().__init__(name="Main")
-        imports.ImportTools(["packages", "Structs", "packages/panels"])
-        events.emit("start")
-        self.started = True
-        print("Bot started!")
+        super().on_start()
         super().run()
 
     def on_message(self, event):

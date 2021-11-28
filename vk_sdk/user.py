@@ -1,6 +1,6 @@
 from vk_api.exceptions import ApiError
 
-from SDK.methodExecutor import MethodExecutor
+from .methodExecutor import MethodExecutor
 from .keyboard import Keyboard
 import vk_api
 from . import thread

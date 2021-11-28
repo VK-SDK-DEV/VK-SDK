@@ -1,12 +1,26 @@
+import json
 import vk_api
 from vk_api.longpoll import VkEventType, VkLongPoll
-from SDK.listExtension import ListExtension
-from SDK.stringExtension import StringExtension
-from SDK.thread import Thread
+from .listExtension import ListExtension
+from .stringExtension import StringExtension
+from .thread import Thread
 import re
-from SDK import (database, jsonExtension, user, cmd)
+from . import imports
+imports.ImportTools(["Structs"])
+from . import (jsonExtension, user, cmd, database, events)
 
-config = jsonExtension.load("config.json")
+DEFAULT_CONFIG = """
+{
+    "db_file": "data/db.sqlite3",
+    "db_backups": false,
+    "db_backups_folder": "backups/",
+    "db_backup_interval": 43200,
+    "sync_timezone": "Europe/Moscow",
+    "vk_api_key": ""
+}
+"""
+
+config = jsonExtension.loadAdvanced("config.json", content = DEFAULT_CONFIG)
 
 
 class LongPoll(VkLongPoll):
@@ -16,10 +30,13 @@ class LongPoll(VkLongPoll):
 
     def listen(self):
         while True:
-            self.instance.check_tasks()
-            updates = self.check()
-            for event in updates:
-                yield event
+            try:
+                self.instance.check_tasks()
+                updates = self.check()
+                for event in updates:
+                    yield event
+            except:
+                pass
 
 
 class AbstractChatLongPoll(Thread):
@@ -60,12 +77,14 @@ class AbstractChatLongPoll(Thread):
 
     def run(self):
         for event in self.longpoll.listen():
-            if event.type == VkEventType.MESSAGE_NEW and event.to_me and not event.from_me and not event.from_group:
+            if event.type == VkEventType.MESSAGE_NEW and event.to_me and not event.from_me and not event.from_group and not event.from_chat:
                 self.attachments = ListExtension()
                 self.sticker_id = None
                 self.user = user.User(event.user_id, vk=self.vk)
                 self.raw_text = StringExtension(event.message.strip())
                 self.event = event
+                if hasattr(self.event, "payload") and self.event.payload is not None:
+                    self.event.payload = json.loads(self.event.payload)
                 self.text = StringExtension(self.raw_text.lower().strip())
                 self.txtSplit = self.text.split()
                 self.command = self.txtSplit[0] if len(
@@ -79,8 +98,12 @@ class AbstractChatLongPoll(Thread):
 
 
 class BotLongPoll(AbstractChatLongPoll):
+    def on_start(self):
+        events.emit("start")
+        self.started = True
     def __init__(self, **kwargs) -> None:
         super().__init__(config["vk_api_key"], **kwargs)
+        imports.ImportTools(["packages", "Structs", "packages/panels"])
         self.group_id = "-" + re.findall(r'\d+', self.longpoll.server)[0]
 
     def wait(self, x, y):

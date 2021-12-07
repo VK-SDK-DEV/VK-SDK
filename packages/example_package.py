@@ -1,5 +1,4 @@
-from SDK.cmd import after_text_matcher, command, after_func
-from SDK.cmd import start_command
+from vk_sdk.cmd import after_text_matcher, command, after_func, start_command
 
 
 @after_text_matcher("demo", "кнопка 1")

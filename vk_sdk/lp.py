@@ -103,7 +103,7 @@ class BotLongPoll(AbstractChatLongPoll):
         self.started = True
     def __init__(self, **kwargs) -> None:
         super().__init__(config["vk_api_key"], **kwargs)
-        imports.ImportTools(["packages", "Structs", "packages/panels"])
+        imports.ImportTools(["packages", "Structs"])
         self.group_id = "-" + re.findall(r'\d+', self.longpoll.server)[0]
 
     def wait(self, x, y):

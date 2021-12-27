@@ -8,5 +8,5 @@
 
 
 __author__ = 'SPRAVEDLIVO'
-__version__ = '1.5.2'
-__email__ = 'spravedlivo@mailfence.com'
+__version__ = '1.5.3'
+__email__ = 'admin@spravedlivo.dev'

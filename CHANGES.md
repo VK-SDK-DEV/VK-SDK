@@ -1,3 +1,6 @@
+# v1.5.3
+- [=] Remove relations between Database class and AbstractLongPoll class
+
 # v1.5 [With Love from DDBot]
 - [+] New max_two_buttons strategy on keyboard
 - [=] Bug fixes introduced with structs rewrite

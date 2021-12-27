@@ -47,10 +47,8 @@ class AbstractChatLongPoll(Thread):
         self.vk_session = vk_api.VkApi(token=token)
         self.longpoll = LongPoll(self, self.vk_session)
         self.vk = self.vk_session.get_api()
-        self.database = self.db or database.Database(
-            self.config["db_file"], self.config["db_backups_folder"], self)
+        self.database = self.db or database.Database(self.config)
         AbstractChatLongPoll.db = self.database
-        database.db = self.database
         super().__init__(**kwargs)
 
     def parse_attachments(self):

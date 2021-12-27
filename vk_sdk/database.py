@@ -160,14 +160,14 @@ class Database(object):
     typeToTypeCache = {str: "text", dict: "str", list: "str",
                        float: "real", type(None): "null", int: "int", bool: "bool"}
 
-    def __init__(self, file: AnyStr, backup_folder: AnyStr, bot_class, **kwargs):
-        self.backup_folder = backup_folder
-        folder = os.path.split(file)[0]
+    def __init__(self, settings: dict, **kwargs):
+        self.settings = settings
+        self.backup_folder = self.settings["db_backups_folder"]
+        folder = os.path.split(self.settings["db_file"])[0]
         if not os.path.exists(folder):
             os.makedirs(folder)
-        self.file = file
-        self.bot_class = bot_class
-        self.db = sqlite3.connect(file, check_same_thread=False, **kwargs)
+        self.file = self.settings["db_file"]
+        self.db = sqlite3.connect(self.settings["db_file"], check_same_thread=False, **kwargs)
         self.row_factory = sqlite3.Row
         self.db.row_factory = self.row_factory
         self.cursor = self.db.cursor()
@@ -192,18 +192,21 @@ class Database(object):
                 if field not in variables:
                     self.execute(
                         f"alter table {struct.table_name} drop column {field}")
+        if self.settings["db_backups"]:
+            thread.every(self.settings["db_backup_interval"], name="Backup")(
+                self.backup)
 
-        thread.every(self.bot_class.config["db_backup_interval"], name="Backup")(
-            self.backup)
+        global db
+        db = self
 
     def backup(self):
-        if not self.bot_class.config["db_backups"]:
+        if not self.settings["db_backups"]:
             return
 
         rawName = self.file.split("/")[-1]
         manager = thread.ThreadManager()
         manager.changeInterval(
-            "Backup", self.bot_class.config["db_backup_interval"])
+            "Backup", self.settings["db_backup_interval"])
         backup_table = sqlite3.connect(
             f"{self.backup_folder}backup_{timeExtension.now()}_{rawName}")
         self.db.backup(backup_table)
@@ -213,11 +216,6 @@ class Database(object):
             args = []
         self.cursor.execute(query, args)
         return self.cursor.fetchall()
-
-    def create_execute_task(self, query, args=None):
-        if args is None:
-            args = []
-        thread.ThreadManager.get_main_thread().create_task(db.execute, query, args)
 
     def select_one(self, query: AnyStr, *args):
         if isinstance(args, list):

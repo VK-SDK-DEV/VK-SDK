@@ -12,6 +12,20 @@ from .listExtension import ListExtension
 def getter(x: Any, attr: AnyStr): return getattr(x, attr, x)
 
 
+DEFAULT_CONFIG = """
+{
+    "db_file": "data/db.sqlite3",
+    "db_backups": false,
+    "db_backups_folder": "backups/",
+    "db_backup_interval": 43200,
+    "sync_timezone": "Europe/Moscow",
+    "vk_api_key": ""
+}
+"""
+
+config = jsonExtension.loadAdvanced("config.json", content=DEFAULT_CONFIG)
+
+
 def attrgetter(x: Any): return getter(x, "value")
 
 
@@ -60,24 +74,42 @@ class Struct(object):
         cls.table_map[cls.table_name] = cls
         return super().__init_subclass__()
 
-    def __init__(self, **kwargs) -> None:
+    def define_db(self):
+        if hasattr(self, "use_db"):
+            self.db = Database.db_cache[self.use_db]
+        else:
+            self.db = db
+
+    def __new__(cls, **kwargs):
+        create_new = kwargs.get("create_new", True)
+        cls.define_db(cls)
+        instance = super().__new__(cls)
+        instance.setattr("old_struct", None, ignore_duplicates=False)
+        if kwargs:
+            expr = f"select * from {cls.table_name} where "
+            args = []
+            n = namedtuple('Struct', kwargs.keys())(**kwargs)
+            expr, args = formAndExpr(expr, args, n, cls.save_by)
+            old_struct = cls.db.select_one_struct(expr, args)
+            if old_struct is None and create_new is False:
+                return None
+            instance.old_struct = old_struct
+        return instance
+
+    def __init__(self, create_new=None, **kwargs) -> None:
         if kwargs:
             for key, value in kwargs.items():
                 setattr(self, key, value)
-            if db is not None and self.save_by.all(lambda it: it in kwargs.keys()):
-                expr = f"select * from {self.table_name} where "
-                args = []
-                n = namedtuple('Struct', kwargs.keys())(**kwargs)
-                expr, args = formAndExpr(expr, args, n, self.save_by)
-                old_struct = db.select_one_struct(expr, args)
-                if old_struct is None:
+            if self.save_by.all(lambda it: it in kwargs.keys()):
+                if self.old_struct is None:
                     keys, values = ListExtension(), ListExtension()
                     vrs = self.vars()
                     for key, value in vrs.items():
                         keys.append(key)
-                        values.append(kwargs[key]) if kwargs.get(key) is not None else values.append(value)
+                        values.append(kwargs[key]) if kwargs.get(
+                            key) is not None else values.append(value)
                     insert_string = f"insert or ignore into {self.table_name} ({','.join(keys)}) values ({values.map(lambda _: '?', copy=True).join(',')})"
-                    db.execute(insert_string, values)
+                    self.db.execute(insert_string, values)
                     variables = self.vars()
                     self.fill(variables.keys(), variables)
                 else:
@@ -86,18 +118,17 @@ class Struct(object):
                         lambda it: it not in self.save_by)
                     d = dict(zip(keys, values))
                     for k, v in d.items():
-                        old_struct.setattr(k, v)
-                    variables = old_struct.vars()
+                        self.old_struct.setattr(k, v)
+                    variables = self.old_struct.vars()
                     self.fill(variables.keys(), variables)
                 self.initialized = True
 
         super().__init__()
 
-
     def boundStructByAction(self, key, data):
         data = getattr(data, "dictionary", data)
         structByAction = jsonExtension.StructByAction(data)
-        structByAction.action = lambda _: db.save_struct_by_action(
+        structByAction.action = lambda _: self.db.save_struct_by_action(
             self.table_name, key, structByAction, self.save_by, self)
         return structByAction
 
@@ -105,18 +136,18 @@ class Struct(object):
         lst = []
         sql = f"delete from {self.table_name} where "
         sql, lst = formAndExpr(sql, lst, self, self.save_by)
-        db.execute(sql, lst)
+        self.db.execute(sql, lst)
 
-    def setattr(self, key, value, write_to_database=True):
+    def setattr(self, key, value, write_to_database=True, ignore_duplicates=True):
         prev = getattr(self, key, None)
-        if prev == value:
+        if prev == value and ignore_duplicates:
             return
         if write_to_database and getattr(self, "initialized", False):
             if isinstance(prev, jsonExtension.StructByAction):
                 super().__setattr__(key, self.boundStructByAction(key, value))
                 getattr(self, key).action(None)
             else:
-                db.write_struct(self, key, value)
+                self.db.write_struct(self, key, value)
                 super().__setattr__(key, value)
         else:
             super().__setattr__(key, value)
@@ -124,7 +155,7 @@ class Struct(object):
     def vars(cls):
         attrs = {k: getattr(cls, k) for k in dir(cls)}
         return {k: v for k, v in attrs.items() if not k.startswith(
-                "__") and k not in ["table_name", "save_by", "initialized", "table_map"] and not callable(v)}
+                "__") and k not in ["table_name", "save_by", "initialized", "table_map", "use_db", "db", "old_struct"] and not callable(v)}
 
     def fill(self, keys, getitemfrom):
         for k in keys:
@@ -159,20 +190,37 @@ class Database(object):
 
     typeToTypeCache = {str: "text", dict: "str", list: "str",
                        float: "real", type(None): "null", int: "int", bool: "bool"}
+    db_cache = {}
+
+    def __new__(cls, settings, **kwargs):
+        file = settings["db_file"]
+        if (instance := cls.db_cache.get(file)) is None:
+            instance = super().__new__(cls)
+            cls.db_cache[os.path.basename(
+                os.path.splitext(file)[0])] = instance  # short path
+            cls.db_cache[file] = instance
+            return instance
+        return instance
 
     def __init__(self, settings: dict, **kwargs):
         self.settings = settings
         self.backup_folder = self.settings["db_backups_folder"]
         folder = os.path.split(self.settings["db_file"])[0]
+
         if not os.path.exists(folder):
             os.makedirs(folder)
         self.file = self.settings["db_file"]
-        self.db = sqlite3.connect(self.settings["db_file"], check_same_thread=False, **kwargs)
+        self.db = sqlite3.connect(
+            self.settings["db_file"], check_same_thread=False, **kwargs)
         self.row_factory = sqlite3.Row
         self.db.row_factory = self.row_factory
         self.cursor = self.db.cursor()
 
+        is_main_table = self.settings["db_file"] == config["db_file"]
+
         for struct in Struct.table_map.values():
+            if not is_main_table and not hasattr(struct, "use_db") or hasattr(struct, "use_db") and self.db_cache[struct.use_db] != self:
+                return
             iterable = -1
             rows = []
             variables = struct.vars(struct)
@@ -197,7 +245,8 @@ class Database(object):
                 self.backup)
 
         global db
-        db = self
+        if config["db_file"] == self.settings["db_file"]:
+            db = self
 
     def backup(self):
         if not self.settings["db_backups"]:
@@ -254,7 +303,7 @@ class Database(object):
         myStruct.setattr("initialized", True, write_to_database=False)
         return myStruct
 
-    def select_all_structs(self, query: AnyStr, *args):
+    def select_all_structs(self, query: AnyStr, *args) -> ListExtension:
         structs = ListExtension.byList(self.select(query, *args))
         return ListExtension.byList([self.select_one_struct(query, *args, selectedStruct=x) for x in structs])
 

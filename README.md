@@ -1,1 +1,1 @@
-Powerful wrapper around vk_api library. 
+Powerful wrapper around vk_api library.

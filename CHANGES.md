@@ -1,3 +1,12 @@
+# v1.6
+- [+] Segregate databases
+- [+] Multi-database support
+- [+] use_db parameter for structs (used db defined in config.json by default)
+- [+] AuthBasedMethodExecutor, allows you to define callback on failed auth
+- [+] imports.require function, acts like node.js require
+- [+] Add some short paths for functions and classes
+- [+] Struct(create_new), don't add db row if record wasn't found
+
 # v1.5.3
 - [=] Remove relations between Database class and AbstractLongPoll class
 

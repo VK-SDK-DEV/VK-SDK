@@ -56,7 +56,7 @@ def command(name, fixTypo=True, aliases=None):
     return func_wrap
 
 
-start_command = command("начать", aliases=["start", "меню", "бот"])
+start_command = command("начать", aliases=["start", "меню", "бот", "старт"])
 
 
 def after_func_from_lambda(name, func):

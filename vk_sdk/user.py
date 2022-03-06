@@ -51,6 +51,17 @@ class User(MethodExecutor):
         if method in User.user_id_methods:
             kwargs[User.user_id_methods[method]] = self.id
 
+    def __eq__(self, o: object) -> bool:
+        if not isinstance(o, type(self)):
+            raise NotImplementedError
+        return self.id == o.id
+
+    def __hash__(self) -> int:
+        return int(self.id)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(id={self.id})"
+
     @property
     def mention(self):
         return f"@id{self.id}({self.user_name})"

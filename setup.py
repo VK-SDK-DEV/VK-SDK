@@ -10,7 +10,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name="vk_sdk",
-    version="1.5.3",
+    version="1.6.1",
     description="Wrapper around vk_api library",
     long_description=README,
     long_description_content_type="text/markdown",

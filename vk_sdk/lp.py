@@ -1,26 +1,14 @@
+from . import (user, cmd, database, events)
 import json
 import vk_api
 from vk_api.longpoll import VkEventType, VkLongPoll
 from .listExtension import ListExtension
 from .stringExtension import StringExtension
 from .thread import Thread
+from .database import config
 import re
 from . import imports
 imports.ImportTools(["Structs"])
-from . import (jsonExtension, user, cmd, database, events)
-
-DEFAULT_CONFIG = """
-{
-    "db_file": "data/db.sqlite3",
-    "db_backups": false,
-    "db_backups_folder": "backups/",
-    "db_backup_interval": 43200,
-    "sync_timezone": "Europe/Moscow",
-    "vk_api_key": ""
-}
-"""
-
-config = jsonExtension.loadAdvanced("config.json", content = DEFAULT_CONFIG)
 
 
 class LongPoll(VkLongPoll):
@@ -40,15 +28,12 @@ class LongPoll(VkLongPoll):
 
 
 class AbstractChatLongPoll(Thread):
-    db = None
-
-    def __init__(self, token, **kwargs) -> None:
+    def __init__(self, config, **kwargs) -> None:
         self.config = config
-        self.vk_session = vk_api.VkApi(token=token)
+        self.vk_session = vk_api.VkApi(token=config["vk_api_key"])
         self.longpoll = LongPoll(self, self.vk_session)
         self.vk = self.vk_session.get_api()
-        self.database = self.db or database.Database(self.config)
-        AbstractChatLongPoll.db = self.database
+        self.db = database.Database(self.config)
         super().__init__(**kwargs)
 
     def parse_attachments(self):
@@ -65,7 +50,7 @@ class AbstractChatLongPoll(Thread):
                 self.sticker_id = attachment["sticker_id"]
 
     def write(self, user_id, *args, **kwargs):
-        user.User(user_id, vk = self.vk).write(*args, **kwargs)
+        user.User(user_id, vk=self.vk).write(*args, **kwargs)
 
     def reply(self, *args, **kwargs):
         return self.user.write(*args, **kwargs)
@@ -99,8 +84,9 @@ class BotLongPoll(AbstractChatLongPoll):
     def on_start(self):
         events.emit("start")
         self.started = True
-    def __init__(self, **kwargs) -> None:
-        super().__init__(config["vk_api_key"], **kwargs)
+
+    def __init__(self, c=None, **kwargs) -> None:
+        super().__init__(c or config, **kwargs)
         imports.ImportTools(["packages", "Structs"])
         self.group_id = "-" + re.findall(r'\d+', self.longpoll.server)[0]
 
@@ -113,5 +99,7 @@ class BotLongPoll(AbstractChatLongPoll):
         cmd.set_after(x, self.user.id, y)
 
 # for future uses?
+
+
 class UserLongPoll(AbstractChatLongPoll):
     pass

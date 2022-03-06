@@ -1,3 +1,8 @@
+# v1.6.2
+- [+] Import queue
+- [+] __import_order__.py, create this file in your subpackage to specify import order
+
+
 # v1.6
 - [+] Segregate databases
 - [+] Multi-database support

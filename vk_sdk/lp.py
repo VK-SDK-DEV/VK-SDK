@@ -12,6 +12,7 @@ imports.ImportTools(["Structs"])
 
 
 class LongPoll(VkLongPoll):
+    """Custom class for longpoll listening with preventing connection break errors"""
     def __init__(self, instance, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.instance = instance
@@ -37,6 +38,16 @@ class AbstractChatLongPoll(Thread):
         super().__init__(**kwargs)
 
     def parse_attachments(self):
+        """
+        The parse_attachments function parses the attachments from a message and appends them to the list of attachments.
+        The function takes in a list of dictionaries, each dictionary containing an attachment type and its corresponding 
+        attachment data. The function then iterates through each dictionary, extracting the attachment type and accessing 
+        the corresponding data (access_key for photos/videos, owner_id & id for photos/videos). If there is no access key 
+        for that particular attachment (i.e. attachment is public), then only the owner_id & id are used to create an 
+        attachment string; otherwise both are used.
+        
+        :param self: Used to Access variables that belong to the class.
+        """
         for attachmentList in self.attachments_last_message:
             attachment_type = attachmentList['type']
             attachment = attachmentList[attachment_type]
@@ -50,15 +61,45 @@ class AbstractChatLongPoll(Thread):
                 self.sticker_id = attachment["sticker_id"]
 
     def write(self, user_id, *args, **kwargs):
+        """
+        The write function writes message to some user
+        :param self: Used to Reference the class object.
+        :param user_id: user to write
+        :param *args: Used to Send a non-keyworded variable length argument list to the function.
+        :param **kwargs: Used to Specify a variable number of keyword arguments.
+        """
         user.User(user_id, vk=self.vk).write(*args, **kwargs)
 
     def reply(self, *args, **kwargs):
+        """
+        The reply function is used to reply to a message. It takes the following arguments:
+            - *args: Args for User.write method.
+            - **kwargs: A dictionary of additional attributes for User.write method.
+        :param self: Used to Access variables that belongs to the class.
+        :param *args: Used to Send a non-keyworded variable length argument list to the function.
+        :param **kwargs: Used to Pass a dictionary of keyword arguments.
+        :return: The result of the function call.
+        
+        :doc-author: Trelent
+        """
         return self.user.write(*args, **kwargs)
 
     def on_message(self, event):
+        """
+        The on_message function is our bot's handler for the 'message' event, which
+        is triggered whenever a message is sent. We can access the
+        message that was sent using the `event` argument passed to us.
+        
+        :param self: Used to Access variables that belongs to the class.
+        :param event: Message event.
+        """
         pass
 
     def run(self):
+        """
+        The run function is the main function of the bot. It is called on thread start. Setups listening for events
+        :param self: Used to Access variables that belong to the class.
+        """
         for event in self.longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me and not event.from_me and not event.from_group and not event.from_chat:
                 self.attachments = ListExtension()
@@ -82,6 +123,7 @@ class AbstractChatLongPoll(Thread):
 
 class BotLongPoll(AbstractChatLongPoll):
     def on_start(self):
+        """Emits start event"""
         events.emit("start")
         self.started = True
 

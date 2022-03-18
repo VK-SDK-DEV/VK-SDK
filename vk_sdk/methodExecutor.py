@@ -3,6 +3,13 @@ from vk_api import VkApi
 
 
 def empty(*args, **kwargs):
+    """
+    The empty function
+    
+    :param *args: Used to Pass a non-keyworded, variable-length argument list.
+    :param **kwargs: Used to Pass a keyworded, variable-length argument list.
+    :return: "none".
+    """
     pass
 
 
@@ -12,9 +19,17 @@ class MethodExecutor(object):
         self.on_method_execute = on_method_execute or empty
         self.on_error = on_error or empty
         self._vk = vk
-        # super().__init__()
 
-    def __getattr__(self, method):  # str8 up
+    def __getattr__(self, method):
+        """
+        The __getattr__ function is called when an attribute is not found in the usual places 
+        (__dict__, class tree). It can bebe used to delegate the lookup to another object (usually either 
+        the superclass or a mixin) and/or try some dynamic approach (e.g., see this recipe).
+        
+        :param self: Used to Access the class instance from within the method.
+        :param method: Used to Determine which method is called.
+        :return: A methodexecutor object.
+        """
         if '_' in method:
             m = method.split('_')
             method = m[0] + ''.join(i.title() for i in m[1:])
@@ -45,6 +60,17 @@ class MethodExecutor(object):
 
 class AuthBasedMethodExecutor(MethodExecutor):
     def __init__(self, token, invalid_callback=None) -> None:
+        """
+        The __init__ function is called when a new instance of the class is created. 
+        It initializes all of the variables in the class and can accept arguments that 
+        are passed to it at creation time. In this case, we are creating an object that 
+        contains a token and an invalid_callback function.
+        
+        :param self: Used to Reference the class instance itself.
+        :param token: Used to Authenticate the user through VK.
+        :param invalid_callback=None: Used to Specify a function to call when the token is invalid.
+        :return: None.
+        """
         self._valid = True
         self.invalid_callback = invalid_callback or empty
         vk = VkApi(token=token).get_api()

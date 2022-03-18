@@ -3,6 +3,7 @@ from vk_api.exceptions import ApiError
 from .methodExecutor import MethodExecutor
 from .keyboard import Keyboard
 import vk_api
+from vk_api import VkUpload
 from . import thread
 from .cmd import set_after
 
@@ -12,6 +13,17 @@ class User(MethodExecutor):
         "messages.getHistory": "user_id", "users.get": "user_ids"}
 
     def __new__(cls, user_id, fields = None, **kwargs):
+        """
+        The __new__ function is the method called before __init__, it's used to create an instance of a class.
+        It takes in cls (the class) as the first argument and returns an instance of that class.
+        The __new__ function is also allowed to modify attributes on cls before returning the new object.
+        
+        :param cls: Used to Refer to the class, not the instance.
+        :param user_id: Used to Specify the user whose data we want to get.
+        :param fields=None: Used to Get the fields from the vk api.
+        :param **kwargs: Used to Pass parameters to the __init__ function.
+        :return: A user instance if user_id was a valid user id, otherwise None.
+        """
         try:
             if fields is None:
                 fields = "photo_id,photo_50"
@@ -28,6 +40,16 @@ class User(MethodExecutor):
             return None
 
     def __init__(self, user_id=None, fields = None, vk=None):
+        """
+        The __init__ function is called when an instance of the class is created. 
+        It initializes all of the variables that are defined in the __init__ function, 
+        and it sets them to their passed-in values. In this case, we're setting self.avatar = avatar and self.user_name = user_name.
+        
+        :param self: Used to Refer to the object itself.
+        :param user_id=None: Used to Specify the user id.
+        :param fields=None: Used to Specify the fields that will be returned by the api.
+        :param vk=None: Used to Pass the vk object to the class.
+        """
         self.avatar = f"photo{self.request['photo_id']}" if self.request.get(
             'photo_id') is not None else ""
         self.user_name = f"{self.request['first_name']} {self.request['last_name']}"
@@ -36,6 +58,14 @@ class User(MethodExecutor):
         super().__init__(self.vk, self.on_method_execute)
 
     def write(self, message, keyboard=None, after=None, after_args=None, **kwargs):
+        """Method to write a user
+
+        Args:
+            message (str): message content
+            keyboard (:class:`Keyboard`, optional): Keyboard to send.
+            after (str, optional): After function to ser.
+            after_args (str, optional): Arguments for after function.
+        """     
         if keyboard is not None:
             kwargs["keyboard"] = Keyboard.byKeyboard(keyboard)
         try:

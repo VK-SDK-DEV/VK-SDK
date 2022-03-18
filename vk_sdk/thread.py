@@ -80,6 +80,11 @@ class Every(Thread):
 
     # override
     def run(self):
+        """
+        The run function runs callback function. It checks for new tasks, and executes them.
+        
+        :param self: Used to Access the class instance from within the function.
+        """
         self.callback(*self.args)
         while not self.event.wait(self.interval) and not self.stopped:
             if self.onExecCallback is not None:
@@ -89,6 +94,18 @@ class Every(Thread):
 
 
 def every(interval, *myArgs, callback=None, **myKwargs):
+    """
+    The every function is a decorator that schedules the given function to be called periodically. 
+    The decorated function is called with the given arguments and keyword arguments, as well as any additional 
+    arguments passed when calling the Every instance. The decorated function is called at first invocation 
+    and then repeatedly every interval seconds, or with an optional initial delay.
+    
+    :param interval: Used to Set the time interval between each execution of the function.
+    :param *myArgs: Used to Pass arguments to the function that is being called.
+    :param callback=None: Used to Pass a function to be called when the timer is executed.
+    :param **myKwargs: Used to Pass in keyword arguments to the callback function.
+    :return: A function that is a wrapper around the original function.
+    """
     def func_wrap(func):
         return Every(interval, *myArgs, onExecCallback=callback, **myKwargs, callback=func)
 

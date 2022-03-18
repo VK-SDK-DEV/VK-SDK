@@ -11,6 +11,29 @@ class Keyboard(keyboard.VkKeyboard):
               "red": "negative", "green": "positive"}
 
     def __init__(self, buttons=None, strategy="default", one_time=False, inline=False):
+        """
+        The __init__ function is called when a new object is created from the class.
+        The __init__ function can take arguments, but self is always the first one.
+        Self is just a reference to the instance of the class. It's automatically 
+        passed in when you instantiate an instance of the class.
+        
+        :param self: Used to Refer to the object itself.
+        :param buttons=None: Dict/List/str describing buttons.
+            could be Dict:
+                        name       color
+                :code:`{"button1": "red"}`
+            could be List:
+                         name
+                :code:`["button1", "button2"]`
+            could be str:
+                         name
+                :code:`"button_name"`
+            for list and str we use random colors
+        :param strategy="default": Used to Set the default strategy for handling append on the buttons.
+        :param one_time=False: Used to Specify if the keyboard should be removed after one response.
+        :param inline=False: Used to Specify whether the buttons should be bounded to a message.
+        :return: The object of the class.
+        """
         if buttons is None:
             buttons = []
         self.strategy = strategy
@@ -27,12 +50,21 @@ class Keyboard(keyboard.VkKeyboard):
 
     @classmethod
     def byKeyboard(cls, newKb):
+        """
+        The byKeyboard function is a class method that returns an instance of the Keyboard class. 
+        It takes one argument, newKb, which is either another Keyboard object. If newKb is not already a Keyboard object it will be passed to the constructor.
+        
+        :param cls: Used to Pass the class of the object that is being created.
+        :param newKb: Used to Pass in a new keyboard object.
+        :return: A new instance of the keyboard class.
+        """
         if isinstance(newKb, cls):
             return newKb
         else:
             return cls(newKb)
 
     def get_keyboard(self):
+        """Cleanups empty lines and returns keyboard as json"""
         self.cleanup_empty()
         return super().get_keyboard()
 
@@ -65,6 +97,13 @@ class Keyboard(keyboard.VkKeyboard):
                 del self.lines[i]
 
     def add_line(self):
+        """
+        The add_line function adds a line to the Keyboard.
+        It also removes any empty lines from the Keyboard.
+        
+        :param self: Used to Refer to the object itself.
+        :return: None.
+        """
         self.cleanup_empty()
         self.button_index = 0
         super().add_line()
@@ -89,6 +128,13 @@ class Keyboard(keyboard.VkKeyboard):
                 self.add_button(k, v)
 
     def get_random_color(self):
+        """
+        The get_random_color function returns a random color.
+        
+        :returns: A random color from `Keyboard.colors`:
+        
+        :param self: Used to Access variables that belongs to the class.
+        """
         return random.choice(list(self.colors))
 
     def __repr__(self):

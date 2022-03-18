@@ -30,6 +30,15 @@ def attrgetter(x: Any): return getter(x, "value")
 
 
 def formAndExpr(baseSql, argsList, getattrFrom, add):
+    """
+    The formAndExpr function takes a baseSql string, an argsList list, and a getattrFrom object. It then adds the attributes from the add list to the baseSql string and appends their values to argsList.
+    
+    :param baseSql: Used to Store the sql query that will be used to update the database.
+    :param argsList: Used to Store the values of the parameters in add.
+    :param getattrFrom: Used to Get the values from the object.
+    :param add: Used to Add the column names to the basesql string.
+    :return: A string that is a concatenation of the strings in add, each followed by an "and" and surrounded by open and close parentheses.
+    """
     for i, k in enumerate(add):
         baseSql += f"{k}=?"
         argsList.append(getattr(getattrFrom, k))
@@ -39,11 +48,28 @@ def formAndExpr(baseSql, argsList, getattrFrom, add):
 
 
 def to_sneak_case(string):
+    """
+    The to_sneak_case function converts a string to snake_case.
+    
+    Args:
+        string (str): The input string. 
+    Returns:
+        str: The output snake_case formatted string.
+    
+    :param string: Used to Define the string that will be converted to sneak case.
+    :return: A string in sneak case.
+    """
     return re.sub(r'(?<!^)(?=[A-Z])', '_', string).lower()
 
 
 # Handle all stuff behind Struct instances
 def convert_to_list_if_needed(element):
+    """
+    The convert_to_list_if_needed function checks if the input is a list. If it is not, it converts the input to a list and returns that. Otherwise, it just returns the original element.
+    
+    :param element: Used to Check if the element is a list.
+    :return: A listextension object.
+    """
     if not isinstance(element, list):
         return ListExtension([element])
     else:
@@ -55,6 +81,7 @@ class Struct(object):
 
     @classmethod
     def extract_table_name(cls):
+        """Searches for table_name in Struct"""
         if hasattr(cls, "table_name"):
             return getattr(cls, "table_name")
         else:
@@ -62,6 +89,14 @@ class Struct(object):
 
     @classmethod
     def extract_save_by(cls):
+        """
+        The extract_save_by function is used to extract the save_by attribute from a class.
+        
+        If the class has no save_by attribute, it will look for any attributes that are instances of Sqlite3Properties and return them in a list.
+        
+        :param cls: Used to Access the class object of the current instance.
+        :return: A list of the names of all the attributes that are marked for saving.
+        """
         if hasattr(cls, "save_by"):
             return convert_to_list_if_needed(attrgetter(cls.save_by))
         for k, v in vars(cls).items():
@@ -69,6 +104,14 @@ class Struct(object):
                 return ListExtension(k)
 
     def __init_subclass__(cls) -> None:
+        """
+        The __init_subclass__ function is called when some class derives from our Struct
+        It’s purpose is to ensure that all subclasses of the base class have their own table_name and save_by attributes, 
+        and that they are kept in sync with the base class via an updated table_map.
+        
+        :param cls: Used to Access the class object.
+        :return: The class object that is being defined.
+        """
         cls.table_name = cls.extract_table_name()
         cls.save_by = cls.extract_save_by()
         cls.table_map[cls.table_name] = cls
@@ -126,6 +169,7 @@ class Struct(object):
         super().__init__()
 
     def boundStructByAction(self, key, data):
+        """Bounds struct by action to a given data (list or dict). Struct by action will handle the watching on elements change."""
         data = getattr(data, "dictionary", data)
         structByAction = jsonExtension.StructByAction(data)
         structByAction.action = lambda _: self.db.save_struct_by_action(
@@ -133,12 +177,32 @@ class Struct(object):
         return structByAction
 
     def destroy(self):
+        """
+        The destroy function deletes Struct record from db.
+        
+        :param self: Used to Refer to the object itself.
+        """
         lst = []
         sql = f"delete from {self.table_name} where "
         sql, lst = formAndExpr(sql, lst, self, self.save_by)
         self.db.execute(sql, lst)
 
     def setattr(self, key, value, write_to_database=True, ignore_duplicates=True):
+        """
+        The setattr function is a helper function that allows us to write the value of an attribute to the database.
+        It is called when we set an attribute on a Struct, and it will only write to the database if:
+        - The struct has been initialized (i.e., it's ready to use and that's not some internal module call)
+        - The key being assigned matches one of our attributes (otherwise, we might be trying to assign something that doesn't correspond with any known field in our struct)
+        - The value being assigned is different from what was previously stored for this key in our struct (unless ignore_duplicates=True). This prevents us from writing unnecessary updates.
+        Otherwise it's some internal package calls.
+
+        :param self: Used to Reference the object that is calling the function.
+        :param key: Used to Specify the attribute that is to be set.
+        :param value: Used to Set the value of an attribute.
+        :param write_to_database=True: Do we need to write changed value to db.
+        :param ignore_duplicates=True: Used to Avoid writing the same value to the database multiple times.
+        :return: None.
+        """
         prev = getattr(self, key, None)
         if prev == value and ignore_duplicates:
             return
@@ -153,11 +217,18 @@ class Struct(object):
             super().__setattr__(key, value)
 
     def vars(cls):
+        """
+        The vars function is used to extract the class variables from a class.
+        
+        :param cls: Used to Indicate the class that we want to get attributes from.
+        :return: A dictionary of the class's namespace.
+        """
         attrs = {k: getattr(cls, k) for k in dir(cls)}
         return {k: v for k, v in attrs.items() if not k.startswith(
                 "__") and k not in ["table_name", "save_by", "initialized", "table_map", "use_db", "db", "old_struct"] and not callable(v)}
 
     def fill(self, keys, getitemfrom):
+        """Fills attributes mapped from list[str] keys to getitemfrom object to our Struct"""
         for k in keys:
             v = getitemfrom[k]
             attr = v

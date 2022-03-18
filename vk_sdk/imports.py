@@ -3,13 +3,15 @@ from importlib import util
 import importlib
 import pathlib
 from types import ModuleType
+import inspect
 
 
 class ImportOrder(object):
     orders = {}
     file_name = "__import_order__.py"
 
-    def __init__(self, file, *names, sort_files=False) -> None:
+    def __init__(self, *names, sort_files=False, file = None) -> None:
+        file = file or inspect.stack()[1].filename
         self.order = []
         names = [
             name + ".py" if not name.endswith(".py") else name for name in names]
@@ -21,7 +23,7 @@ class ImportOrder(object):
         files = os.listdir(parent)
         if sort_files:
             files.sort()
-        for file in os.listdir(parent):
+        for file in files:
             if file not in names:
                 self.order.append(file)
         self.orders[rel_path] = self
@@ -62,16 +64,35 @@ class ImportTools(object):
             self.imported.add(path)
 
     def reload(self, module):
+        """
+        The reload function reloads a module. It takes in the name of the module as an argument and reloads it.
+        
+        :param self: Used to Reference the class object.
+        :param module: Used to Specify the module that is to be reloaded.
+        :return: The module that was reloaded.
+        """
         for k, v in self.modules.items():
             if k == module:
                 self.modules[k] = importlib.reload(v)
 
     def reload_all(self):
+        """
+        The reload_all function reloads all of the modules.
+        
+        :param self: Used to Access the attributes and methods of the class in which it is used.
+        """
         for k, v in self.modules.items():
             self.modules[k] = importlib.reload(v)
 
     @classmethod
     def imp_by_path(cls, path) -> ModuleType:
+        """
+        The imp_by_path function imports a Python module from a path. Like a node.js' require 
+        
+        :param cls: Used to Access the class attributes.
+        :param path: Used to Specify the path of the module.
+        :return: The module that was loaded from the path.
+        """
         if not path.endswith(".py"):
             path += ".py"
         module_name = os.path.splitext(os.path.basename(path))[0]

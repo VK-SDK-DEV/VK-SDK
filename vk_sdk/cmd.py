@@ -7,6 +7,7 @@ from .jsonExtension import StructByAction
 
 
 class AfterFunc(database.Struct):
+    """Structure for AfterFuncs"""
     save_by = "user_id"
     user_id = database.Sqlite3Property("", "not null unique")
     after_name = ""
@@ -60,16 +61,43 @@ start_command = command("начать", aliases=["start", "меню", "бот", 
 
 
 def after_func_from_lambda(name, func):
+    """Generates a after function from lambda
+
+    Args:
+        name (str): name of after function
+        func (function): lambda function to generate after_func from
+    """
     after_func(name)(func)
 
 
 def after_func(name):
+    """
+    The after_func function is a decorator that takes the name of after function as an argument. 
+    
+    :param name: Used to identify after function.
+    :return: A function object which is assigned to func_wrap.
+    """
     def func_wrap(func):
         AbstractAfterFunc(name, func)
     return func_wrap
 
 
 def after_text_matcher(name, text):
+    """
+    The after_text_matcher function is a decorator that can be used to mark functions as 
+    the handler for some text. The decorated function should take two arguments, the name of 
+    the matcher and the text that matched. For example:
+    
+        @after_text_matcher('foo', 'bar')
+        def handle_foo(self):
+            print("I'm after function 'foo' that was executed on text match 'bar'")
+    
+        # This will cause handle_foo to be called if "bar" was the text of message and after func was set to "foo"
+    
+    :param name: Used to Identify the function.
+    :param text: Used to Store the text that is to be matched.
+    :return: Wrapper around function.
+    """
     def func_wrap(func):
         function = AbstractAfterFunc(name)
         function.text_matchers[text] = func
@@ -77,6 +105,13 @@ def after_text_matcher(name, text):
 
 
 def set_after(name, uID, args=None):
+    """Binds after function to specific user
+
+    Args:
+        name (_type_): Name of after function.
+        uID (str): user id.
+        args (list[Any], optional): Args to be passed when after function will be executed. Defaults to None.
+    """
     if args is None:
         args = []
     struct = AfterFunc(after_name=name, user_id=uID)

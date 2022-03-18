@@ -1,6 +1,9 @@
+# v1.6.3
+- [+] Minor fixes to import queue
+
 # v1.6.2
 - [+] Import queue
-- [+] __import_order__.py, create this file in your subpackage to specify import order
+- [+] ``__import_order__.py``, create this file in your subpackage to specify import order
 
 
 # v1.6

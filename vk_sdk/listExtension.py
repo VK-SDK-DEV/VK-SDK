@@ -41,6 +41,15 @@ class ListExtension(list):
         return l
 
     def all(self, function, *args, **kwargs):
+        """
+        The all function takes a function and it's additional argumes. 
+        It returns True if the function(element, *args, **kwargs) evaluates to True for every element of the iterable, False otherwise.
+        
+        :param self: Used to Call the function on each element in the list.
+        :param function: Used to Specify the function that is to be called on each element of the iterable.
+        :param *args: Used to Pass a non-keyworded, variable-length argument list.
+        :param **kwargs: Used to Pass keyworded, variable-length argument lists to the function.
+        """
         for i in self:
             if not function(i, *args, **kwargs):
                 return False

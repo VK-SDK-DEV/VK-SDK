@@ -1,13 +1,14 @@
 from vk_api.exceptions import ApiError
+from vk_api import VkApi
 
 from .methodExecutor import MethodExecutor
 from .keyboard import Keyboard
 import vk_api
-from vk_api import VkUpload
 from . import thread
 from .cmd import set_after
 
 class User(MethodExecutor):
+    """Class representing event user"""
     # method to insert keyword map
     user_id_methods = {
         "messages.getHistory": "user_id", "users.get": "user_ids"}
@@ -32,6 +33,8 @@ class User(MethodExecutor):
             if vk is None:
                 vk = thread.main_thread.vk
                 kwargs["vk"] = vk
+            elif isinstance(vk, VkApi):
+                vk = vk.get_api()
             instance.vk = vk
             get = vk.users.get(user_ids=user_id, fields=fields)[0]
             instance.request = get
@@ -41,10 +44,6 @@ class User(MethodExecutor):
 
     def __init__(self, user_id=None, fields = None, vk=None):
         """
-        The __init__ function is called when an instance of the class is created. 
-        It initializes all of the variables that are defined in the __init__ function, 
-        and it sets them to their passed-in values. In this case, we're setting self.avatar = avatar and self.user_name = user_name.
-        
         :param self: Used to Refer to the object itself.
         :param user_id=None: Used to Specify the user id.
         :param fields=None: Used to Specify the fields that will be returned by the api.
@@ -65,7 +64,9 @@ class User(MethodExecutor):
             keyboard (:class:`Keyboard`, optional): Keyboard to send.
             after (str, optional): After function to ser.
             after_args (str, optional): Arguments for after function.
-        """     
+        """
+        if (att := kwargs.pop("attachments", None)) is not None:
+            kwargs["attachment"] = att
         if keyboard is not None:
             kwargs["keyboard"] = Keyboard.byKeyboard(keyboard)
         try:

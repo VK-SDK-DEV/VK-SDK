@@ -1,15 +1,22 @@
+"""Custom SQLite alchemy"""
+
 import os
 import re
 import sqlite3
 from collections import namedtuple
 from typing import AnyStr, Any, Iterable
 from sqlite3 import Row
+from sys import version_info
+from warnings import warn
 
 from . import jsonExtension, thread, timeExtension
 from .listExtension import ListExtension
 
 
 def getter(x: Any, attr: AnyStr): return getattr(x, attr, x)
+
+
+SUPPORTS_DROP_COLUMNS = version_info.major >= 3 and version_info.minor > 9
 
 
 DEFAULT_CONFIG = """
@@ -32,7 +39,7 @@ def attrgetter(x: Any): return getter(x, "value")
 def formAndExpr(baseSql, argsList, getattrFrom, add):
     """
     The formAndExpr function takes a baseSql string, an argsList list, and a getattrFrom object. It then adds the attributes from the add list to the baseSql string and appends their values to argsList.
-    
+
     :param baseSql: Used to Store the sql query that will be used to update the database.
     :param argsList: Used to Store the values of the parameters in add.
     :param getattrFrom: Used to Get the values from the object.
@@ -50,12 +57,12 @@ def formAndExpr(baseSql, argsList, getattrFrom, add):
 def to_sneak_case(string):
     """
     The to_sneak_case function converts a string to snake_case.
-    
+
     Args:
         string (str): The input string. 
     Returns:
         str: The output snake_case formatted string.
-    
+
     :param string: Used to Define the string that will be converted to sneak case.
     :return: A string in sneak case.
     """
@@ -66,7 +73,7 @@ def to_sneak_case(string):
 def convert_to_list_if_needed(element):
     """
     The convert_to_list_if_needed function checks if the input is a list. If it is not, it converts the input to a list and returns that. Otherwise, it just returns the original element.
-    
+
     :param element: Used to Check if the element is a list.
     :return: A listextension object.
     """
@@ -91,9 +98,9 @@ class Struct(object):
     def extract_save_by(cls):
         """
         The extract_save_by function is used to extract the save_by attribute from a class.
-        
-        If the class has no save_by attribute, it will look for any attributes that are instances of Sqlite3Properties and return them in a list.
-        
+
+        If the class has no save_by attribute, it will look for any attributes that are instances of Sqlite3Properties that has unique modifier in their type.
+
         :param cls: Used to Access the class object of the current instance.
         :return: A list of the names of all the attributes that are marked for saving.
         """
@@ -108,7 +115,7 @@ class Struct(object):
         The __init_subclass__ function is called when some class derives from our Struct
         It’s purpose is to ensure that all subclasses of the base class have their own table_name and save_by attributes, 
         and that they are kept in sync with the base class via an updated table_map.
-        
+
         :param cls: Used to Access the class object.
         :return: The class object that is being defined.
         """
@@ -179,8 +186,6 @@ class Struct(object):
     def destroy(self):
         """
         The destroy function deletes Struct record from db.
-        
-        :param self: Used to Refer to the object itself.
         """
         lst = []
         sql = f"delete from {self.table_name} where "
@@ -196,7 +201,6 @@ class Struct(object):
         - The value being assigned is different from what was previously stored for this key in our struct (unless ignore_duplicates=True). This prevents us from writing unnecessary updates.
         Otherwise it's some internal package calls.
 
-        :param self: Used to Reference the object that is calling the function.
         :param key: Used to Specify the attribute that is to be set.
         :param value: Used to Set the value of an attribute.
         :param write_to_database=True: Do we need to write changed value to db.
@@ -219,7 +223,7 @@ class Struct(object):
     def vars(cls):
         """
         The vars function is used to extract the class variables from a class.
-        
+
         :param cls: Used to Indicate the class that we want to get attributes from.
         :return: A dictionary of the class's namespace.
         """
@@ -267,11 +271,22 @@ class Database(object):
         file = settings["db_file"]
         if (instance := cls.db_cache.get(file)) is None:
             instance = super().__new__(cls)
-            cls.db_cache[os.path.basename(
-                os.path.splitext(file)[0])] = instance  # short path
+            db_short = os.path.basename(
+                os.path.splitext(file)[0])
+            cls.db_cache[db_short] = instance  # short path
+            cls.db_name = db_short
             cls.db_cache[file] = instance
             return instance
         return instance
+
+    def end_changes(self):
+        if self.need_commit and self.stash:
+            self.db.commit()
+            self.need_commit = False
+            self.stash = False
+
+    def begin_changes(self):
+        self.stash = True
 
     def __init__(self, settings: dict, **kwargs):
         self.settings = settings
@@ -286,11 +301,13 @@ class Database(object):
         self.row_factory = sqlite3.Row
         self.db.row_factory = self.row_factory
         self.cursor = self.db.cursor()
+        self.stash = False
+        self.need_commit = False
 
-        is_main_table = self.settings["db_file"] == config["db_file"]
+        is_main_db = self.settings["db_file"] == config["db_file"]
 
         for struct in Struct.table_map.values():
-            if not is_main_table and not hasattr(struct, "use_db") or hasattr(struct, "use_db") and self.db_cache[struct.use_db] != self:
+            if not is_main_db and not hasattr(struct, "use_db") or hasattr(struct, "use_db") and self.db_cache[struct.use_db] != self:
                 return
             iterable = -1
             rows = []
@@ -307,16 +324,25 @@ class Database(object):
                 if field not in table_fields:
                     self.execute(
                         f"alter table {struct.table_name} add column {rows[iterable]}")
+            skipped_drop = []
             for field in list(table_fields):
                 if field not in variables:
-                    self.execute(
-                        f"alter table {struct.table_name} drop column {field}")
+                    if SUPPORTS_DROP_COLUMNS or config.get("disable_column_drop_checks"):
+                        self.execute(
+                            f"alter table {struct.table_name} drop column {field}")
+                    else:
+                        skipped_drop.append(
+                            f"{field} (struct {struct.table_name})")
+            if len(skipped_drop) > 0:
+                warn(f"There are {len(skipped_drop)} columns waiting to be deleted from database {self.db_name}." +
+                     f"Unfortunately, your python version doesn't support this sqlite3 operation. Please, delete the following fields by yourself:\n" +
+                     f"{''.join(skipped_drop)}\n\n(You can try setting disable_column_drop_checks to True in config file and see if it works)")
         if self.settings["db_backups"]:
             thread.every(self.settings["db_backup_interval"], name="Backup")(
                 self.backup)
 
-        global db
         if config["db_file"] == self.settings["db_file"]:
+            global db
             db = self
 
     def backup(self):
@@ -395,7 +421,10 @@ class Database(object):
             elif type(k) is jsonExtension.StructByAction:
                 args[i] = jsonExtension.json.dumps(k.dictionary)
         self.cursor.execute(query, args)
-        self.db.commit()
+        if self.stash:
+            self.need_commit = True
+        else:
+            self.db.commit()
         return self.cursor
 
     def get_column_names(self, table: AnyStr):

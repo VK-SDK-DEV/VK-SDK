@@ -4,19 +4,6 @@ class Event(object):
     callbacks = {}
 
     def __init__(self, name, func, param="") -> None:
-        """
-        The __init__ function is called when an instance of the class is created. 
-        It initializes all of the variables that are defined in the __init__ function, 
-        and it sets up any functions that will be used with instances of this class.
-        
-        :param self: Used to Reference the object itself.
-        :param name: Used to Identify the event.
-        :param func: Used to Specify the function that should be called when the event is triggered.
-        :param param="": Used to define event behaviour (on - don't remove callback after event occurs, once - remove callback)
-        :return: None.
-        
-        :doc-author: Trelent
-        """
         self.name = name
         self.param = param
         self.func = func
@@ -47,8 +34,6 @@ def once(name):
     
     :param name: Used to Identify the event.
     :return: A function that takes a function as an argument.
-    
-    :doc-author: Trelent
     """
     def func_wrap(func):
         Event(name, func, "once")

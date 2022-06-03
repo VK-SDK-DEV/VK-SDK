@@ -1,8 +1,10 @@
+"""Kotlin-Like Enums"""
+
 import inspect
 from .dataClass import DataClass
 
 
-# kotlin-like enums
+
 class Enum(object):
     def __init__(self, customDataClass=None):
         inspectedArgs = inspect.getfullargspec(self.__init__)

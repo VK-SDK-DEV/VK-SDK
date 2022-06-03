@@ -1,3 +1,13 @@
+# v1.7
+- [+] Provide __slots__ for most of classes
+- [=] Improve docs
+- [+] command emulation
+- [+] User.write will fix 'attachment' argument if you made a typo
+- [+] Provide tests
+- [+] Database (partially) stashes changes made during event handling
+- [=] Longpoll fixes and optimizations
+- [+] Panels
+
 # v1.6.3
 - [+] Minor fixes to import queue
 

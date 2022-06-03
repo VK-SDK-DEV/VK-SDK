@@ -1,3 +1,5 @@
+"""Various extentions for time managing time"""
+
 import time
 from datetime import datetime
 
@@ -5,19 +7,18 @@ import pytz
 
 
 class Timestamp(object):
+
+    __slots__ = ('timestamp', 'diff', 'sync_tz')
+
     def __init__(self, timestamp=None, sync_tz="Europe/Moscow"):
         """
-        The __init__ function is called when an instance of the class is created. 
-        It initializes all of the variables that are defined in the __init__ function, 
-        and it sets up any default behavior for instances of this class. In our case, 
-        we want to set a timestamp and sync_tz variable by default.
-        
-        :param self: Used to Refer to the object itself.
         :param timestamp=None: Used to Set the timestamp to the current time if it is not specified.
         :param sync_tz="Europe/Moscow": Used to Set the timezone to sync timestamp with.
         """
         self.sync_tz = sync_tz
-        self.timestamp = timestamp or time.time()
+        if timestamp is None:
+            timestamp = time.time()
+        self.timestamp = timestamp
         zrh = pytz.timezone(self.sync_tz)
         tztime = zrh.localize(datetime.fromtimestamp(self.timestamp))
         tzfloat = (tztime - datetime(1970, 1, 1,

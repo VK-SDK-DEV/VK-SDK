@@ -15,6 +15,8 @@ def empty(*args, **kwargs):
 
 class MethodExecutor(object):
     def __init__(self, vk, on_method_execute, on_error=None, method=None) -> None:
+        if isinstance(vk, VkApi):
+            vk = vk.get_api()
         self._method = method
         self.on_method_execute = on_method_execute or empty
         self.on_error = on_error or empty

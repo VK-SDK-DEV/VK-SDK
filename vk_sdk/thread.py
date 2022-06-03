@@ -63,6 +63,9 @@ def threaded(*args, **kwargs):
 
 
 class Every(Thread):
+
+    __slots__ = ('interval', 'stopped', 'event', 'onExecCallback', 'args', 'callback')
+
     def __init__(self, interval, *args, onExecCallback=None, callback=None, **kwargs):
         if callback is not None:
             self.callback = callback

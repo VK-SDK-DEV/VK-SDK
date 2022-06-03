@@ -6,6 +6,7 @@ from .listExtension import ListExtension
 from .stringExtension import StringExtension
 from .thread import Thread
 from .database import config
+from requests.adapters import HTTPAdapter, Retry
 import re
 from . import imports
 imports.ImportTools(["Structs"])
@@ -13,26 +14,18 @@ imports.ImportTools(["Structs"])
 
 class LongPoll(VkLongPoll):
     """Custom class for longpoll listening with preventing connection break errors"""
-    def __init__(self, instance, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.instance = instance
-
-    def listen(self):
-        while True:
-            try:
-                self.instance.check_tasks()
-                updates = self.check()
-                for event in updates:
-                    yield event
-            except:
-                pass
+        self.retry = Retry(connect=3, backoff_factor=0.33)
+        self.http_adapter = HTTPAdapter(max_retries=self.retry)
+        self.session.mount('https://', self.http_adapter)
 
 
 class AbstractChatLongPoll(Thread):
-    def __init__(self, config, **kwargs) -> None:
+    def __init__(self, config, api_class = vk_api.VkApi, **kwargs) -> None:
         self.config = config
-        self.vk_session = vk_api.VkApi(token=config["vk_api_key"])
-        self.longpoll = LongPoll(self, self.vk_session)
+        self.vk_session = api_class(token=config["vk_api_key"])
+        self.longpoll = LongPoll(self.vk_session)
         self.vk = self.vk_session.get_api()
         self.db = database.Database(self.config)
         super().__init__(**kwargs)
@@ -42,11 +35,9 @@ class AbstractChatLongPoll(Thread):
         The parse_attachments function parses the attachments from a message and appends them to the list of attachments.
         The function takes in a list of dictionaries, each dictionary containing an attachment type and its corresponding 
         attachment data. The function then iterates through each dictionary, extracting the attachment type and accessing 
-        the corresponding data (access_key for photos/videos, owner_id & id for photos/videos). If there is no access key 
-        for that particular attachment (i.e. attachment is public), then only the owner_id & id are used to create an 
-        attachment string; otherwise both are used.
-        
-        :param self: Used to Access variables that belong to the class.
+        the corresponding data (owner_id, attachment_id, access_key). If there is no access key 
+        for that particular attachment (i.e. attachment is public), then only the owner_id & attachment_id are used to create an 
+        attachment string
         """
         for attachmentList in self.attachments_last_message:
             attachment_type = attachmentList['type']
@@ -79,8 +70,6 @@ class AbstractChatLongPoll(Thread):
         :param *args: Used to Send a non-keyworded variable length argument list to the function.
         :param **kwargs: Used to Pass a dictionary of keyword arguments.
         :return: The result of the function call.
-        
-        :doc-author: Trelent
         """
         return self.user.write(*args, **kwargs)
 
@@ -94,31 +83,40 @@ class AbstractChatLongPoll(Thread):
         :param event: Message event.
         """
         pass
+    
+    def init_text(self, raw_text):
+        self.raw_text = StringExtension(raw_text)
+        self.text = StringExtension(self.raw_text.lower())
+        self.txtSplit = self.text.split()
+        self.command = self.txtSplit[0] if len(
+                    self.txtSplit) > 0 else ""
+        self.args = self.txtSplit[1:]
+
 
     def run(self):
         """
-        The run function is the main function of the bot. It is called on thread start. Setups listening for events
-        :param self: Used to Access variables that belong to the class.
+        The run function is the main function of the bot. It is called on thread start.
         """
         for event in self.longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me and not event.from_me and not event.from_group and not event.from_chat:
+                self.db.begin_changes()
                 self.attachments = ListExtension()
                 self.sticker_id = None
                 self.user = user.User(event.user_id, vk=self.vk)
-                self.raw_text = StringExtension(event.message.strip())
+                self.init_text(event.message.strip())
                 self.event = event
-                if hasattr(self.event, "payload") and self.event.payload is not None:
-                    self.event.payload = json.loads(self.event.payload)
-                self.text = StringExtension(self.raw_text.lower().strip())
-                self.txtSplit = self.text.split()
-                self.command = self.txtSplit[0] if len(
-                    self.txtSplit) > 0 else ""
-                self.args = self.txtSplit[1:]
+                if (payload := getattr(self.event, "payload", None)) is not None:
+                    self.event.payload = json.loads(payload)
                 self.messages = self.user.messages.getHistory(count=3)["items"]
                 self.last_message = self.messages[0]
                 self.attachments_last_message = self.last_message["attachments"]
                 self.parse_attachments()
-                self.on_message(event)
+                try:
+                    self.on_message(event)
+                except Exception as e:
+                    raise e 
+                finally:
+                    self.db.end_changes()
 
 
 class BotLongPoll(AbstractChatLongPoll):
@@ -128,7 +126,7 @@ class BotLongPoll(AbstractChatLongPoll):
         self.started = True
 
     def __init__(self, c=None, **kwargs) -> None:
-        super().__init__(c or config, **kwargs)
+        super().__init__(c or config, api_class=vk_api.vk_api.VkApiGroup, **kwargs)
         imports.ImportTools(["packages", "Structs"])
         self.group_id = "-" + re.findall(r'\d+', self.longpoll.server)[0]
 

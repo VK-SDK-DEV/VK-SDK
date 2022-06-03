@@ -1,32 +1,26 @@
-from vk_sdk import after_text_matcher, after_func, start_command
+from vk_sdk import menu
 
 
-@after_text_matcher("demo", "кнопка 1")
+@menu.command("кнопка 1")
 def match_button_one(self):
     self.reply("Кнопка 1 была нажата.")
-    # returning True won't reset after_name to null after function call (after_func will be handled once again)
-    return True
 
 
-@after_text_matcher("demo", "кнопка 2")
+@menu.command("кнопка 2")
 def match_button_two(self):
     self.reply("Кнопка 2 была нажата.")
-    return True
 
 
-@after_text_matcher("demo", "кнопка 3")
+@menu.command("кнопка 3")
 def match_button_three(self):
     self.reply("Кнопка 3 была нажата.")
-    return True
 
 
-@after_func("menu")
+@menu.circular.register_invalid_handler()
 def match_button_one(self):
     self.reply("Ни одна из кнопок не была нажата.")
-    return True
 
-
-@start_command
+@menu.enter()
 def start(self, args):
     self.reply("Привет! Я - демонстрационный пакет VK-SDK.", keyboard={
-               "Кнопка 1": "blue", "Кнопка 2": "green", "Кнопка 3": "red", "strategy": "max_two_buttons"}, after="demo")
+               "Кнопка 1": "blue", "Кнопка 2": "green", "Кнопка 3": "red", "strategy": "max_two_buttons"})

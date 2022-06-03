@@ -7,7 +7,7 @@ from .jsonExtension import StructByAction
 
 
 class Keyboard(keyboard.VkKeyboard):
-    colors = {"blue": "primary", "white": "default",
+    colors = {"blue": "primary", "white": "secondary",
               "red": "negative", "green": "positive"}
 
     def __init__(self, buttons=None, strategy="default", one_time=False, inline=False):
@@ -52,7 +52,7 @@ class Keyboard(keyboard.VkKeyboard):
     def byKeyboard(cls, newKb):
         """
         The byKeyboard function is a class method that returns an instance of the Keyboard class. 
-        It takes one argument, newKb, which is either another Keyboard object. If newKb is not already a Keyboard object it will be passed to the constructor.
+        Returns new keyboard from newKb if it isn't already a Keyboard instance
         
         :param cls: Used to Pass the class of the object that is being created.
         :param newKb: Used to Pass in a new keyboard object.

@@ -8,7 +8,7 @@ HERE = pathlib.Path(__file__).parent
 # The text of the README file
 README = (HERE / "README.md").read_text()
 
-VERSION = findall(r"__version__ = '(...)'", (HERE / "vk_sdk/__init__.py").read_text())[0]
+VERSION = findall(r"__version__ = '(.*)'", (HERE / "vk_sdk/__init__.py").read_text())[0]
 
 # This call to setup() does all the work
 setup(

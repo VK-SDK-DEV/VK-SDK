@@ -306,6 +306,10 @@ class Database(object):
 
         is_main_db = self.settings["db_file"] == config["db_file"]
 
+        if is_main_db:
+            global db
+            db = self
+
         for struct in Struct.table_map.values():
             if not is_main_db and not hasattr(struct, "use_db") or hasattr(struct, "use_db") and self.db_cache[struct.use_db] != self:
                 return
@@ -324,7 +328,7 @@ class Database(object):
                 if field not in table_fields:
                     self.execute(
                         f"alter table {struct.table_name} add column {rows[iterable]}")
-            skipped_drop = []
+            skipped_drop = ListExtension()
             for field in list(table_fields):
                 if field not in variables:
                     if SUPPORTS_DROP_COLUMNS or config.get("disable_column_drop_checks"):
@@ -340,10 +344,6 @@ class Database(object):
         if self.settings["db_backups"]:
             thread.every(self.settings["db_backup_interval"], name="Backup")(
                 self.backup)
-
-        if config["db_file"] == self.settings["db_file"]:
-            global db
-            db = self
 
     def backup(self):
         if not self.settings["db_backups"]:

@@ -11,5 +11,5 @@ from .keyboard import Keyboard
 from .cmd import menu, command, after_text_matcher, after_func
 
 __author__ = 'SPRAVEDLIVO'
-__version__ = '1.7'
+__version__ = '1.7.1'
 __email__ = 'admin@spravedlivo.dev'

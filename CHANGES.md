@@ -1,3 +1,7 @@
+# v1.7.1-v1.7.2
+- [+] Struct.select_all
+- [=] db fixes
+
 # v1.7
 - [+] Provide __slots__ for most of classes
 - [=] Improve docs

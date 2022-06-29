@@ -1,9 +1,9 @@
 """Custom SQLite alchemy"""
 
+from operator import getitem
 import os
 import re
 import sqlite3
-from collections import namedtuple
 from typing import AnyStr, Any, Iterable
 from sqlite3 import Row
 from sys import version_info
@@ -36,9 +36,10 @@ config = jsonExtension.loadAdvanced("config.json", content=DEFAULT_CONFIG)
 def attrgetter(x: Any): return getter(x, "value")
 
 
-def formAndExpr(baseSql, argsList, getattrFrom, add):
+def _formAndExpr(baseSql, argsList = None, getattrFrom = None, add = None):
     """
     The formAndExpr function takes a baseSql string, an argsList list, and a getattrFrom object. It then adds the attributes from the add list to the baseSql string and appends their values to argsList.
+    Used internally from module
 
     :param baseSql: Used to Store the sql query that will be used to update the database.
     :param argsList: Used to Store the values of the parameters in add.
@@ -46,9 +47,14 @@ def formAndExpr(baseSql, argsList, getattrFrom, add):
     :param add: Used to Add the column names to the basesql string.
     :return: A string that is a concatenation of the strings in add, each followed by an "and" and surrounded by open and close parentheses.
     """
+    method = getitem if isinstance(getattrFrom, dict) else getattr
+    if argsList is None:
+        argsList = ListExtension()
+    if any([x is None for x in (getattrFrom, add)]):
+        raise ValueError
     for i, k in enumerate(add):
         baseSql += f"{k}=?"
-        argsList.append(getattr(getattrFrom, k))
+        argsList.append(method(getattrFrom, k))
         if i != len(add) - 1:
             baseSql += " and "
     return baseSql, argsList
@@ -124,22 +130,13 @@ class Struct(object):
         cls.table_map[cls.table_name] = cls
         return super().__init_subclass__()
 
-    def define_db(self):
-        if hasattr(self, "use_db"):
-            self.db = Database.db_cache[self.use_db]
-        else:
-            self.db = db
-
     def __new__(cls, **kwargs):
         create_new = kwargs.get("create_new", True)
-        cls.define_db(cls)
         instance = super().__new__(cls)
         instance.setattr("old_struct", None, ignore_duplicates=False)
         if kwargs:
             expr = f"select * from {cls.table_name} where "
-            args = []
-            n = namedtuple('Struct', kwargs.keys())(**kwargs)
-            expr, args = formAndExpr(expr, args, n, cls.save_by)
+            expr, args = _formAndExpr(expr, getattrFrom = kwargs, add = cls.save_by)
             old_struct = cls.db.select_one_struct(expr, args)
             if old_struct is None and create_new is False:
                 return None
@@ -175,6 +172,11 @@ class Struct(object):
 
         super().__init__()
 
+    @classmethod
+    def select_all(cls, **kwargs):
+        expr, args = _formAndExpr(f"select * from {cls.table_name} where ", getattrFrom=kwargs, add = cls.save_by)
+        return cls.db.select_all_structs(expr, args)
+
     def boundStructByAction(self, key, data):
         """Bounds struct by action to a given data (list or dict). Struct by action will handle the watching on elements change."""
         data = getattr(data, "dictionary", data)
@@ -187,9 +189,8 @@ class Struct(object):
         """
         The destroy function deletes Struct record from db.
         """
-        lst = []
         sql = f"delete from {self.table_name} where "
-        sql, lst = formAndExpr(sql, lst, self, self.save_by)
+        sql, lst = _formAndExpr(sql, getattrFrom = self, add = self.save_by)
         self.db.execute(sql, lst)
 
     def setattr(self, key, value, write_to_database=True, ignore_duplicates=True):
@@ -315,6 +316,7 @@ class Database(object):
                 return
             iterable = -1
             rows = []
+            struct.db = self
             variables = struct.vars(struct)
             for key, value in variables.items():
                 iterable += 1
@@ -375,7 +377,7 @@ class Database(object):
         unique_fields = Struct.table_map[table].save_by
         sql = f"update or ignore {table} set {changedKey} = ? where "
         argsList = [newValue]
-        sql, argsList = formAndExpr(
+        sql, argsList = _formAndExpr(
             sql, argsList, structToWrite, unique_fields)
         self.execute(sql, argsList)
 
@@ -408,7 +410,7 @@ class Database(object):
                               unique_field: Iterable, parent_struct: Struct):
         baseSql = f"update {table_name} set {key} = ? where "
         argsList = [jsonExtension.json.dumps(value.dictionary)]
-        baseSql, argsList = formAndExpr(
+        baseSql, argsList = _formAndExpr(
             baseSql, argsList, parent_struct, unique_field)
         self.execute(baseSql, argsList)
 

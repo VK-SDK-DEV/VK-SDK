@@ -3,7 +3,6 @@ import json
 import vk_api
 from vk_api.longpoll import VkEventType, VkLongPoll
 from .listExtension import ListExtension
-from .stringExtension import StringExtension
 from .thread import Thread
 from .database import config
 from requests.adapters import HTTPAdapter, Retry
@@ -16,7 +15,7 @@ class LongPoll(VkLongPoll):
     """Custom class for longpoll listening with preventing connection break errors"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.retry = Retry(connect=3, backoff_factor=0.33)
+        self.retry = Retry(connect=0, backoff_factor=0.33)
         self.http_adapter = HTTPAdapter(max_retries=self.retry)
         self.session.mount('https://', self.http_adapter)
 
@@ -85,8 +84,8 @@ class AbstractChatLongPoll(Thread):
         pass
     
     def init_text(self, raw_text):
-        self.raw_text = StringExtension(raw_text)
-        self.text = StringExtension(self.raw_text.lower())
+        self.raw_text = raw_text
+        self.text = self.raw_text.lower()
         self.txtSplit = self.text.split()
         self.command = self.txtSplit[0] if len(
                     self.txtSplit) > 0 else ""

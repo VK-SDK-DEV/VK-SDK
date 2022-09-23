@@ -1,5 +1,6 @@
 """Custom SQLite alchemy"""
 
+import json
 from operator import getitem
 import os
 import re
@@ -9,7 +10,10 @@ from sqlite3 import Row
 from sys import version_info
 from warnings import warn
 
-from . import jsonExtension, thread, timeExtension
+from vk_sdk import jsonExtension
+
+from . import thread, timeExtension
+from . import jsonExtension
 from .listExtension import ListExtension
 
 
@@ -69,20 +73,13 @@ def to_sneak_case(string):
     Returns:
         str: The output snake_case formatted string.
 
-    :param string: Used to Define the string that will be converted to sneak case.
+    :param string: String that will be converted to sneak case.
     :return: A string in sneak case.
     """
     return re.sub(r'(?<!^)(?=[A-Z])', '_', string).lower()
 
 
-# Handle all stuff behind Struct instances
 def convert_to_list_if_needed(element):
-    """
-    The convert_to_list_if_needed function checks if the input is a list. If it is not, it converts the input to a list and returns that. Otherwise, it just returns the original element.
-
-    :param element: Used to Check if the element is a list.
-    :return: A listextension object.
-    """
     if not isinstance(element, list):
         return ListExtension([element])
     else:
@@ -105,7 +102,7 @@ class Struct(object):
         """
         The extract_save_by function is used to extract the save_by attribute from a class.
 
-        If the class has no save_by attribute, it will look for any attributes that are instances of Sqlite3Properties that has unique modifier in their type.
+        If the class has no save_by attribute, it will look for any attributes that are instances of Sqlite3Properties that has unique modifier in their "value".
 
         :param cls: Used to Access the class object of the current instance.
         :return: A list of the names of all the attributes that are marked for saving.
@@ -155,7 +152,7 @@ class Struct(object):
                         keys.append(key)
                         values.append(kwargs[key]) if kwargs.get(
                             key) is not None else values.append(value)
-                    insert_string = f"insert or ignore into {self.table_name} ({','.join(keys)}) values ({values.map(lambda _: '?', copy=True).join(',')})"
+                    insert_string = f"insert or ignore into {self.table_name} ({','.join(keys)}) values ({values.map(lambda _: '?').join(',')})"
                     self.db.execute(insert_string, values)
                     variables = self.vars()
                     self.fill(variables.keys(), variables)
@@ -179,10 +176,8 @@ class Struct(object):
 
     def boundStructByAction(self, key, data):
         """Bounds struct by action to a given data (list or dict). Struct by action will handle the watching on elements change."""
-        data = getattr(data, "dictionary", data)
-        structByAction = jsonExtension.StructByAction(data)
-        structByAction.action = lambda _: self.db.save_struct_by_action(
-            self.table_name, key, structByAction, self.save_by, self)
+        structByAction = jsonExtension.StructByAction(data, saver = lambda _: self.db.save_struct_by_action(_, 
+            self.table_name, key, structByAction, self.save_by, self))
         return structByAction
 
     def destroy(self):
@@ -212,9 +207,10 @@ class Struct(object):
         if prev == value and ignore_duplicates:
             return
         if write_to_database and getattr(self, "initialized", False):
-            if isinstance(prev, jsonExtension.StructByAction):
+            if isinstance(prev, tuple(jsonExtension.ExtensionBase.classes.values())):
+                # resave
                 super().__setattr__(key, self.boundStructByAction(key, value))
-                getattr(self, key).action(None)
+                getattr(self, key).save()
             else:
                 self.db.write_struct(self, key, value)
                 super().__setattr__(key, value)
@@ -235,16 +231,13 @@ class Struct(object):
     def fill(self, keys, getitemfrom):
         """Fills attributes mapped from list[str] keys to getitemfrom object to our Struct"""
         for k in keys:
-            v = getitemfrom[k]
-            attr = v
-            data, value = jsonExtension.isDeserializable(v)
-            if isinstance(v, list) or isinstance(v, dict):
-                attr = self.boundStructByAction(k, v)
-            elif value:
-                attr = self.boundStructByAction(k, data)
+            value = jsonExtension.ExtensionBase.accept(getitemfrom[k], saver = lambda _: self.db.save_struct_by_action(_,
+            self.table_name, k, self.save_by, self))
+
             if isinstance(getattr(self, k), bool):
-                attr = self.str2bool(attr)
-            self.setattr(k, attr, False)
+                value = self.str2bool(value)
+
+            self.setattr(k, value, False)
 
     def __setattr__(self, name: str, value: Any) -> None:
         self.setattr(name, value)
@@ -275,7 +268,7 @@ class Database(object):
             db_short = os.path.basename(
                 os.path.splitext(file)[0])
             cls.db_cache[db_short] = instance  # short path
-            cls.db_name = db_short
+            cls.db_name = db_short # instance.db_name ?
             cls.db_cache[file] = instance
             return instance
         return instance
@@ -389,8 +382,6 @@ class Database(object):
             query, *args) if selectedStruct is None else selectedStruct
         if struct is None:
             return None
-        if isinstance(args, jsonExtension.StructByAction):
-            args = args.dictionary
         if not isinstance(table_name, str):
             raise Exception(
                 f"Table name's type is not string (table_name was not provided correctly?)\n{query=}\n{args=}\n{table_name=}")
@@ -406,10 +397,10 @@ class Database(object):
         structs = ListExtension.byList(self.select(query, *args))
         return ListExtension.byList([self.select_one_struct(query, *args, selectedStruct=x) for x in structs])
 
-    def save_struct_by_action(self, table_name: AnyStr, key: Any, value: Any,
+    def save_struct_by_action(self, value, table_name: AnyStr, key: Any,
                               unique_field: Iterable, parent_struct: Struct):
         baseSql = f"update {table_name} set {key} = ? where "
-        argsList = [jsonExtension.json.dumps(value.dictionary)]
+        argsList = [value]
         baseSql, argsList = _formAndExpr(
             baseSql, argsList, parent_struct, unique_field)
         self.execute(baseSql, argsList)
@@ -418,10 +409,8 @@ class Database(object):
         if args is None:
             args = []
         for i, k in enumerate(args):
-            if type(k) is dict or type(k) is list:
-                args[i] = jsonExtension.json.dumps(k)
-            elif type(k) is jsonExtension.StructByAction:
-                args[i] = jsonExtension.json.dumps(k.dictionary)
+            if isinstance(k, tuple(jsonExtension.ExtensionBase.classes.values())):
+                args[i] = json.dumps(k)
         self.cursor.execute(query, args)
         if self.stash:
             self.need_commit = True

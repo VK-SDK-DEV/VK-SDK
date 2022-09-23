@@ -6,7 +6,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/examples/bot_template.py",
             "console": "integratedTerminal",
-            "justMyCode": false
+            "justMyCode": false,
+            "purpose": ["debug-test"]
         }
     ]
 }

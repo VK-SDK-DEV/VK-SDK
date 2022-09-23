@@ -1,2 +1,2 @@
 pytz~=2020.1
-vk-api>=11.9.6
+git+https://github.com/SPRAVEDLIVO/vk_api@main#egg=vk_api

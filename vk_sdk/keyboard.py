@@ -3,8 +3,6 @@ import random
 
 from vk_api import keyboard
 
-from .jsonExtension import StructByAction
-
 
 class Keyboard(keyboard.VkKeyboard):
     colors = {"blue": "primary", "white": "secondary",
@@ -45,8 +43,6 @@ class Keyboard(keyboard.VkKeyboard):
             self.add_from_dict(buttons)
         elif type(buttons) is str:
             self.add_button(buttons, color="green")
-        elif isinstance(buttons, StructByAction):
-            self.add_from_list(buttons.dictionary)
 
     @classmethod
     def byKeyboard(cls, newKb):

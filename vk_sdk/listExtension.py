@@ -1,13 +1,11 @@
-class ListExtension(list):
-    def __new__(cls, other=None):
+import json
+from .jsonExtension import ExtensionBase
+
+class ListExtension(ExtensionBase, list):
+    def __new__(cls, other=None, saver=None):
         if isinstance(other, cls):
             return other
         return super().__new__(cls)
-
-    def __init__(self, other=None):
-        if other is None:
-            other = []
-        super().__init__(other)
 
     def find(self, lmbd, *args, **kwargs):
         for item in self:
@@ -34,7 +32,7 @@ class ListExtension(list):
 
     @classmethod
     def indexList(cls, list=None):
-        iterate = getattr(list, "dictionary", list) or cls
+        iterate = list or cls
         l = cls()
         for index in range(len(iterate)):
             l.append(index)
@@ -68,14 +66,14 @@ class ListExtension(list):
         return self.has(item, True)
 
     def first(self):
-        return self[0]
+        return self.get(0)
 
     def __getitem__(self, key):
-        if isinstance(key, slice):
-            return super().__getitem__(key)
-        if key < len(self):
-            return super().__getitem__(key)
+        if isinstance(key, slice) or key < len(self):
+            return list.__getitem__(self, key)
         return None
+
+    get = __getitem__
 
     def filter(self, lmbd):
         instance = ListExtension()
@@ -83,6 +81,10 @@ class ListExtension(list):
             if lmbd(i):
                 instance.append(i)
         return instance
+
+    @staticmethod
+    def accept(data):
+        return json.loads(data)
 
     def forEach(self, lmbd):
         for item in self:
@@ -97,23 +99,22 @@ class ListExtension(list):
 
     def append(self, value):
         super().append(value)
+        self.save()
         return self
 
     def copy(self):
         return ListExtension(self)
 
-    def map(self, lmbd, copy=False, *args, **kwargs):
-        save = self if not copy else self()
-        for i, _ in enumerate(self):
-            if copy:
-                save.append(lmbd(_, *args, **kwargs))
-            else:
-                save[i] = lmbd(_, *args, **kwargs)
+    def map(self, lmbd, *args):
+        save = self()
+        for element in self:
+            save.append(lmbd(element, *args))
         return save
 
     def __add__(self, other):
         if type(other) is list:
             self += other
+            self.save()
         else:
             self.append(other)
         return self

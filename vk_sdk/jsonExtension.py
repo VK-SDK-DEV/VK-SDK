@@ -1,74 +1,88 @@
 import json
 import os
-from typing import Callable
+
+
+class ExtensionBase(object):
+
+    classes = {}
+
+    def __init_subclass__(cls) -> None:
+
+        for cl in cls.mro():
+            if cl not in (cls, ExtensionBase):
+                cls.classes[cls] = cl
+                cls._subclassing = cl
+                break
+
+    def __init__(self, iterable=None, saver=None):
+        super().__init__(iterable) if iterable is not None else super().__init__()
+        self.saver = saver
+
+    def __getitem__(self, item):
+        result = self.get(item)
+        klass = StructByAction.get_class(result, init=False, saver=self.saver)
+        if not isinstance(result, tuple(ExtensionBase.classes)):
+            klass = StructByAction.get_class(result, saver=self.saver)
+            self.setitem(item, klass, False)
+            return klass
+        return result
+
+    @classmethod
+    def accept(cls, data, **init_kwargs):
+        for cls in cls.classes:
+            if isinstance(data, cls):
+                return data
+            elif (clsm := getattr(cls, "accept", None)) is not None:
+                try:
+                    return StructByAction(clsm(data), **init_kwargs)
+                except Exception:
+                    continue
+        return data
+
+    def __setitem__(self, item, value, save=True):
+        super().__setitem__(item, value)
+        if save:
+            self.save()
+
+    def __delitem__(self, item):
+        super().__delitem__(item)
+        self.save()
+
+    setitem = __setitem__
+
+    def save(self):
+        if self.saver is not None:
+            self.saver.save()
+
+
+class DictExtension(ExtensionBase, dict):
+    @staticmethod
+    def accept(data):
+        return json.loads(data)
+
 
 class StructByAction(object):
 
-    __slots__ = ('parent', 'dictionary', 'action')
+    __slots__ = "saver", "use_class"
 
-    def __init__(self, initDict, parent=None, action: Callable = lambda _: _):
-        self.parent = parent
-        self.dictionary = initDict
-        self.action = action
+    def __new__(cls, initData, saver=None):
+        if type(initData) == type(cls.get_class(initData, init=False)):
+            raise ValueError
+        self_ins = super().__new__(cls)
+        self_ins.saver = saver
+        self_ins.use_class = cls.get_class(initData, saver=self_ins)
+        return self_ins.use_class
 
-    def __setitem__(self, key, value):
-        self.dictionary[key] = value
-        self.content_changed()
+    @staticmethod
+    def get_class(data, *args, init=True, **kwargs):
+        for klass in ExtensionBase.classes:
+            if isinstance(data, klass._subclassing):
+                return klass(data, *args, **kwargs) if init else klass
+        return data
 
-    def content_changed(self):
-        """Recursively resolves parent and calls action on it"""
-        if self.parent is not None:
-            self.parent.content_changed()
-        else:
-            self.action(self.dictionary)
-
-    def __getitem__(self, key):
-        tmp_return = self.dictionary[key]
-        if isinstance(tmp_return, dict) or isinstance(tmp_return, list):
-            return StructByAction(tmp_return, parent=self, action=self.action)
-        else:
-            return tmp_return
-
-    def __iter__(self):
-        return self.dictionary.__iter__()
-
-    def get(self, key):
-        return self.dictionary[key]
-
-    def __str__(self):
-        return self.dictionary.__str__()
-
-    def __repr__(self):
-        return f"StructByAction({self.dictionary})"
-
-    def __delitem__(self, item):
-        del self.dictionary[item]
-        self.action(self.dictionary)
-
-    def __contains__(self, item):
-        return self.dictionary.__contains__(item)
-
-    # list methods
-    def __len__(self):
-        return len(self.dictionary)
-
-    def append(self, value):
-        self.dictionary.append(value)
-        self.content_changed()
-        return self
-
-    def __iadd__(self, keys):
-        self.dictionary += keys
-        self.content_changed()
-        return self
-
-    def insert(self, index, value):
-        self.dictionary.insert(index, value)
-        self.content_changed()
-        return self
-
-    def __bool__(self):
-        return len(self.dictionary) > 0 if isinstance(self.dictionary, list) else len(self.dictionary.keys()) > 0
+    def save(self):
+        if self.saver is not None:
+            self.saver(self.use_class)
 
 
 def save(file, obj, indent=None):
@@ -78,29 +92,14 @@ def save(file, obj, indent=None):
 
 def load(file, indent=None):
     with open(file, encoding="utf-8") as f:
-        return StructByAction(json.load(f), action=lambda d: save(file, d, indent))
+        return StructByAction(json.load(f), saver=lambda d: save(file, d, indent))
 
 
 def loadAdvanced(file, ident=None, content=None):
     if content is not None and not os.path.exists(file):
+        os.makedirs(os.path.dirname(file), exist_ok=True)
         with open(file, "w", encoding="utf-8") as f:
-            content = json.dumps(content) if isinstance(content, dict) else content
+            content = json.dumps(content) if isinstance(
+                content, dict) else content
             f.write(content)
     return load(file, ident)
-
-
-def isCastToFloatAvailable(data):
-    try:
-        float(data)
-        return True
-    except ValueError:
-        return False
-
-
-def isDeserializable(data):
-    try:
-        if isCastToFloatAvailable(data) or not (data.startswith("{") or data.startswith("[")):
-            return {}, False
-        return json.loads(data), True
-    except (ValueError, TypeError):
-        return {}, False

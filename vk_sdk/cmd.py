@@ -11,7 +11,6 @@ from vk_sdk.listExtension import ListExtension
 
 from . import user
 from . import database
-from .jsonExtension import StructByAction
 
 
 class AfterFunc(database.Struct):
@@ -275,9 +274,7 @@ def execute_command(botClass):
             call = after_func.text_matchers.get(
                 botClass.text) or after_func.text_matchers.get("default")
             if call is not None:
-                doNotReset = call(botClass) if (isinstance(selected.args,
-                                                           StructByAction) and not selected.args.dictionary) or not selected.args else \
-                    call(botClass, selected.args)
+                doNotReset = call(botClass) if not selected.args else call(botClass, selected.args)
                 if doNotReset is None or call.__name__ == "<lambda>" or not isinstance(doNotReset, bool):
                     doNotReset = False
                 if doNotReset:

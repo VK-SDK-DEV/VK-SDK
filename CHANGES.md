@@ -1,3 +1,6 @@
+# 1.8.1
+- [=] Tiny fix for db
+
 # 1.8
 - [=] Rewrite StructByAction
 - [-] Remove non-commonly used modules

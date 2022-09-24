@@ -7,7 +7,7 @@ from functools import partial
 import inspect
 from types import NoneType
 
-from vk_sdk.listExtension import ListExtension
+from .listExtension import ListExtension
 
 from . import user
 from . import database

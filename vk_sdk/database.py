@@ -177,7 +177,7 @@ class Struct(object):
     def boundStructByAction(self, key, data):
         """Bounds struct by action to a given data (list or dict). Struct by action will handle the watching on elements change."""
         structByAction = jsonExtension.StructByAction(data, saver = lambda _: self.db.save_struct_by_action(_, 
-            self.table_name, key, structByAction, self.save_by, self))
+            self.table_name, key, self.save_by, self))
         return structByAction
 
     def destroy(self):

@@ -97,7 +97,8 @@ def load(file, indent=None):
 
 def loadAdvanced(file, ident=None, content=None):
     if content is not None and not os.path.exists(file):
-        os.makedirs(os.path.dirname(file), exist_ok=True)
+        _dir = os.path.dirname(file)
+        _dir and os.makedirs(os.path.dirname(file), exist_ok=True)
         with open(file, "w", encoding="utf-8") as f:
             content = json.dumps(content) if isinstance(
                 content, dict) else content

@@ -1,5 +1,6 @@
-# 1.8.1
+# 1.8.1-1.8.2
 - [=] Tiny fix for db
+- [=] Tiny fix for jsonExtension.loadAdvanced
 
 # 1.8
 - [=] Rewrite StructByAction

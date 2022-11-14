@@ -1,11 +1,12 @@
-from vk_api.exceptions import ApiError
-from vk_api import VkApi
-
-from .methodExecutor import MethodExecutor
-from .keyboard import Keyboard
 import vk_api
+from vk_api import VkApi
+from vk_api.exceptions import ApiError
+
 from . import thread
 from .cmd import set_after
+from .keyboard import Keyboard
+from .methodExecutor import MethodExecutor
+
 
 class User(MethodExecutor):
     """Class representing event user"""
@@ -68,7 +69,7 @@ class User(MethodExecutor):
         if (att := kwargs.pop("attachments", None)) is not None:
             kwargs["attachment"] = att
         if keyboard is not None:
-            kwargs["keyboard"] = Keyboard.byKeyboard(keyboard)
+            kwargs["keyboard"] = Keyboard(keyboard)
         try:
             self._vk.messages.send(user_id=self.id, message=message, random_id=vk_api.utils.get_random_id(),
                                    **kwargs)

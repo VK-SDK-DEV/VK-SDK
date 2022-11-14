@@ -1,19 +1,16 @@
 """Custom SQLite alchemy"""
 
 import json
-from operator import getitem
 import os
 import re
 import sqlite3
-from typing import AnyStr, Any, Iterable
+from operator import getitem
 from sqlite3 import Row
 from sys import version_info
+from typing import Any, AnyStr, Iterable
 from warnings import warn
 
-from vk_sdk import jsonExtension
-
-from . import thread, timeExtension
-from . import jsonExtension
+from . import jsonExtension, thread, timeExtension
 from .listExtension import ListExtension
 
 
@@ -34,7 +31,11 @@ DEFAULT_CONFIG = """
 }
 """
 
-config = jsonExtension.loadAdvanced("config.json", content=DEFAULT_CONFIG)
+def on_create_config():
+    print("vk_sdk config created. Make sure to fill vk_api_key before running long pooling code. Happy coding!")
+    os._exit(0)
+
+config = jsonExtension.loadAdvanced("config.json", content=DEFAULT_CONFIG, createCallback=on_create_config)
 
 
 def attrgetter(x: Any): return getter(x, "value")
@@ -171,8 +172,18 @@ class Struct(object):
 
     @classmethod
     def select_all(cls, **kwargs):
-        expr, args = _formAndExpr(f"select * from {cls.table_name} where ", getattrFrom=kwargs, add = cls.save_by)
-        return cls.db.select_all_structs(expr, args)
+        if len(kwargs) > 0:
+            expr, args = _formAndExpr(f"select * from {cls.table_name} where ", getattrFrom=kwargs, add = cls.save_by)
+            return cls.db.select_all_structs(expr, args)
+        else:
+            return cls.db.select_all_structs(f"select * from {cls.table_name}")
+
+    @classmethod
+    def row_at(cls, num):
+        return cls.db.select_one_struct(f"select * from {cls.table_name} limit 1 offset {num}")
+
+    @classmethod 
+    def first(cls): return cls.row_at(0)
 
     def boundStructByAction(self, key, data):
         """Bounds struct by action to a given data (list or dict). Struct by action will handle the watching on elements change."""
@@ -247,6 +258,9 @@ class Struct(object):
             return v.lower() in ("true", "1")
         else:
             return v
+
+    def __repr__(self) -> str:
+        return f"{self.table_name}({', '.join([f'{x}={y}' for x, y in self.vars().items()])})"
 
 
 class Sqlite3Property(object):

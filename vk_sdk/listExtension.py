@@ -1,5 +1,7 @@
 import json
+
 from .jsonExtension import ExtensionBase
+
 
 class ListExtension(ExtensionBase, list):
     def __new__(cls, other=None, saver=None):
@@ -42,7 +44,7 @@ class ListExtension(ExtensionBase, list):
         """
         The all function takes a function and it's additional argumes. 
         It returns True if the function(element, *args, **kwargs) evaluates to True for every element of the iterable, False otherwise.
-        
+
         :param self: Used to Call the function on each element in the list.
         :param function: Used to Specify the function that is to be called on each element of the iterable.
         :param *args: Used to Pass a non-keyworded, variable-length argument list.

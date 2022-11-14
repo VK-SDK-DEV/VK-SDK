@@ -1,13 +1,17 @@
-from . import (user, cmd, database, events)
 import json
+import re
+
+from requests.adapters import HTTPAdapter, Retry
 import vk_api
 from vk_api.longpoll import VkEventType, VkLongPoll
+
+from . import (user, cmd, database, events)
+
 from .listExtension import ListExtension
 from .thread import Thread
 from .database import config
-from requests.adapters import HTTPAdapter, Retry
-import re
 from . import imports
+
 imports.ImportTools(["Structs"])
 
 
@@ -108,7 +112,7 @@ class AbstractChatLongPoll(Thread):
                     self.event.payload = json.loads(payload)
                 self.messages = self.user.messages.getHistory(count=3)["items"]
                 self.last_message = self.messages[0]
-                self.attachments_last_message = self.last_message["attachments"]
+                self.attachments_last_message = ListExtension(self.last_message["attachments"])
                 self.parse_attachments()
                 try:
                     self.on_message(event)

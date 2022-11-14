@@ -22,9 +22,9 @@ setup(
     author_email="spravedlivo@dimden.dev",
     license="AGPLv3",
     packages=["vk_sdk"],
-    python_requires='>=3.9',
+    python_requires='>=3.10',
     classifiers=[
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.10",
         "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
         "Operating System :: OS Independent",
     ],   

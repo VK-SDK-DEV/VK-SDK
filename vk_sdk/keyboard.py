@@ -1,4 +1,3 @@
-from .listExtension import ListExtension
 import random
 
 from vk_api import keyboard
@@ -8,13 +7,18 @@ class Keyboard(keyboard.VkKeyboard):
     colors = {"blue": "primary", "white": "secondary",
               "red": "negative", "green": "positive"}
 
-    def __init__(self, buttons=None, strategy="default", one_time=False, inline=False):
+    def __new__(cls, buttons=None, **kwargs):
+        if isinstance(buttons, cls):
+            return cls
+        return super().__new__(cls)
+
+    def __init__(self, buttons=None, strategy="default", **kwargs):
         """
         The __init__ function is called when a new object is created from the class.
         The __init__ function can take arguments, but self is always the first one.
         Self is just a reference to the instance of the class. It's automatically 
         passed in when you instantiate an instance of the class.
-        
+
         :param self: Used to Refer to the object itself.
         :param buttons=None: Dict/List/str describing buttons.
             could be Dict:
@@ -35,37 +39,19 @@ class Keyboard(keyboard.VkKeyboard):
         if buttons is None:
             buttons = []
         self.strategy = strategy
-        super().__init__(one_time=one_time, inline=inline)
+        super().__init__(**kwargs)
         self.button_index = 0
-        if isinstance(buttons, list) or isinstance(buttons, ListExtension):
-            self.add_from_list(buttons)
-        elif type(buttons) is dict:
-            self.add_from_dict(buttons)
-        elif type(buttons) is str:
-            self.add_button(buttons, color="green")
-
-    @classmethod
-    def byKeyboard(cls, newKb):
-        """
-        The byKeyboard function is a class method that returns an instance of the Keyboard class. 
-        Returns new keyboard from newKb if it isn't already a Keyboard instance
-        
-        :param cls: Used to Pass the class of the object that is being created.
-        :param newKb: Used to Pass in a new keyboard object.
-        :return: A new instance of the keyboard class.
-        """
-        if isinstance(newKb, cls):
-            return newKb
-        else:
-            return cls(newKb)
+        self.__add__(buttons)
 
     def get_keyboard(self):
         """Cleanups empty lines and returns keyboard as json"""
-        self.cleanup_empty()
+        self.cleanup()
         return super().get_keyboard()
 
+    __repr__ = get_keyboard
+
     @classmethod
-    def get_empty_keyboard(cls):
+    def empty(cls):
         return cls()
 
     def add_button(self, *args, **kwargs):
@@ -87,7 +73,7 @@ class Keyboard(keyboard.VkKeyboard):
         self.button_index += 1
         return self
 
-    def cleanup_empty(self):
+    def cleanup(self):
         for i, line in enumerate(self.lines):
             if not line:
                 del self.lines[i]
@@ -96,11 +82,11 @@ class Keyboard(keyboard.VkKeyboard):
         """
         The add_line function adds a line to the Keyboard.
         It also removes any empty lines from the Keyboard.
-        
+
         :param self: Used to Refer to the object itself.
         :return: None.
         """
-        self.cleanup_empty()
+        self.cleanup()
         self.button_index = 0
         super().add_line()
         return self
@@ -108,7 +94,7 @@ class Keyboard(keyboard.VkKeyboard):
     def add_from_list(self, arr):
         for j in arr:
             if j != "locationButton":
-                self.add_button(j, color=self.get_random_color())
+                self.add_button(j, color=self.random_color())
             else:
                 self.add_location_button()
                 self.add_line()
@@ -123,34 +109,29 @@ class Keyboard(keyboard.VkKeyboard):
             else:
                 self.add_button(k, v)
 
-    def get_random_color(self):
+    def random_color(self):
         """
         The get_random_color function returns a random color.
-        
+
         :returns: A random color from `Keyboard.colors`:
-        
+
         :param self: Used to Access variables that belongs to the class.
         """
         return random.choice(list(self.colors))
-
-    def __repr__(self):
-        return self.get_keyboard()
-
-    # += operator
-    def __iadd__(self, other):
-        return self.__add__(other)
 
     def __add__(self, other):
         if isinstance(other, dict):
             self.add_from_dict(other)
         elif isinstance(other, list):
             self.add_from_list(other)
-        else:
-            self.add_button(other, color=self.get_random_color())
+        elif isinstance(other, str):
+            self.add_button(other, color=self.random_color())
         return self
 
+    __iadd__ = __add__
 
-class Strategies(object):
+
+class Strategies:
     @staticmethod
     def default(keyboard: Keyboard):
         return keyboard.button_index % 4 == 0
@@ -160,5 +141,11 @@ class Strategies(object):
         return True
 
     @staticmethod
-    def max_two_buttons(keyboard: Keyboard):
+    def max_two(keyboard: Keyboard):
         return keyboard.button_index % 2 == 0
+
+    max_two_buttons = max_two
+
+    @staticmethod
+    def max_five(keyboard: Keyboard):
+        return keyboard.button_index % 5 == 0

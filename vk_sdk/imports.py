@@ -1,18 +1,18 @@
 """Python importing simplified!"""
 
-import os
-from importlib import util
 import importlib
-import pathlib
-from types import ModuleType
 import inspect
+import os
+import pathlib
+from importlib import util
+from types import ModuleType
 
 
 class ImportOrder(object):
     orders = {}
     file_name = "__import_order__.py"
 
-    def __init__(self, *names, sort_files=False, file = None) -> None:
+    def __init__(self, *names, sort_files=False, file=None) -> None:
         file = file or inspect.stack()[1].filename
         self.order = []
         names = [
@@ -68,7 +68,7 @@ class ImportTools(object):
     def reload(self, module):
         """
         The reload function reloads a module. It takes in the name of the module as an argument and reloads it.
-        
+
         :param self: Used to Reference the class object.
         :param module: Used to Specify the module that is to be reloaded.
         :return: The module that was reloaded.
@@ -80,7 +80,7 @@ class ImportTools(object):
     def reload_all(self):
         """
         The reload_all function reloads all of the modules.
-        
+
         :param self: Used to Access the attributes and methods of the class in which it is used.
         """
         for k, v in self.modules.items():
@@ -90,7 +90,7 @@ class ImportTools(object):
     def imp_by_path(cls, path) -> ModuleType:
         """
         The imp_by_path function imports a Python module from a path. Like a node.js' require 
-        
+
         :param cls: Used to Access the class attributes.
         :param path: Used to Specify the path of the module.
         :return: The module that was loaded from the path.

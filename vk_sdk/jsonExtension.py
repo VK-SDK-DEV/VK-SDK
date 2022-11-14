@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Optional
 
 
 class ExtensionBase(object):
@@ -85,17 +86,21 @@ class StructByAction(object):
             self.saver(self.use_class)
 
 
-def save(file, obj, indent=None):
+Indent = Optional[int]
+Dumpable = list | dict
+
+def save(file: str, obj: Dumpable, indent: Indent = None):
     with open(file, "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=indent)
 
 
-def load(file, indent=None):
+def load(file: str, indent: Indent = None):
     with open(file, encoding="utf-8") as f:
         return StructByAction(json.load(f), saver=lambda d: save(file, d, indent))
 
 
-def loadAdvanced(file, ident=None, content=None):
+def loadAdvanced(file: str, indent: Indent = None, content: Optional[str | dict] = None, createCallback = None):
+    _created = False
     if content is not None and not os.path.exists(file):
         _dir = os.path.dirname(file)
         _dir and os.makedirs(os.path.dirname(file), exist_ok=True)
@@ -103,4 +108,9 @@ def loadAdvanced(file, ident=None, content=None):
             content = json.dumps(content) if isinstance(
                 content, dict) else content
             f.write(content)
-    return load(file, ident)
+            _created = True
+    
+    if _created and createCallback is not None:
+        createCallback()
+        
+    return load(file, indent)

@@ -5,11 +5,12 @@
 
 :copyright: (c) 2022 SPRAVEDLIVO
 """
-from .lp import BotLongPoll, UserLongPoll
-from .user import User
-from .keyboard import Keyboard
-from .cmd import menu, command, after_text_matcher, after_func
 
 __author__ = 'SPRAVEDLIVO'
-__version__ = '1.8.2'
+__version__ = '1.9'
 __email__ = 'admin@spravedlivo.dev'
+
+from .cmd import after_func, after_text_matcher, command, menu
+from .keyboard import Keyboard
+from .lp import BotLongPoll, UserLongPoll
+from .user import User

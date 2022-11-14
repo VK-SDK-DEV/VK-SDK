@@ -1,4 +1,11 @@
-# 1.8.1-1.8.2
+#1.9
+- [=] bump python dep
+- [=] fix recursive error
+- [+] ``__repr__``, select_all fixes, first, row_at for Struct
+- [=] sort imports
+- [=] more breaking changes :sillytime:
+
+# 1.8.1-1.8.3
 - [=] Tiny fix for db
 - [=] Tiny fix for jsonExtension.loadAdvanced
 

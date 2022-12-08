@@ -17,6 +17,7 @@ imports.ImportTools(["Structs"])
 
 class LongPoll(VkLongPoll):
     """Custom class for longpoll listening with preventing connection break errors"""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.retry = Retry(connect=0, backoff_factor=0.33)
@@ -25,7 +26,7 @@ class LongPoll(VkLongPoll):
 
 
 class AbstractChatLongPoll(Thread):
-    def __init__(self, config, api_class = vk_api.VkApi, **kwargs) -> None:
+    def __init__(self, config, api_class=vk_api.VkApi, **kwargs) -> None:
         self.config = config
         self.vk_session = api_class(token=config["vk_api_key"])
         self.longpoll = LongPoll(self.vk_session)
@@ -46,6 +47,12 @@ class AbstractChatLongPoll(Thread):
             attachment_type = attachmentList['type']
             attachment = attachmentList[attachment_type]
             access_key = attachment.get("access_key")
+            if attachment_type == "link":
+                if attachment["url"] not in self.raw_text:
+                    prepared = attachment["url"]
+                    self.raw_text += f"\n{prepared}" if self.text else f"{prepared}"
+                    self.init_text(self.raw_text) # reset text because it sinks
+                continue
             if attachment_type != "sticker":
                 self.attachments.append(
                     f"{attachment_type}{attachment['owner_id']}_{attachment['id']}") if access_key is None \
@@ -81,20 +88,19 @@ class AbstractChatLongPoll(Thread):
         The on_message function is our bot's handler for the 'message' event, which
         is triggered whenever a message is sent. We can access the
         message that was sent using the `event` argument passed to us.
-        
+
         :param self: Used to Access variables that belongs to the class.
         :param event: Message event.
         """
         pass
-    
+
     def init_text(self, raw_text):
-        self.raw_text = raw_text
+        self.raw_text: str = raw_text
         self.text = self.raw_text.lower()
         self.txtSplit = self.text.split()
         self.command = self.txtSplit[0] if len(
-                    self.txtSplit) > 0 else ""
+            self.txtSplit) > 0 else ""
         self.args = self.txtSplit[1:]
-
 
     def run(self):
         """
@@ -112,12 +118,13 @@ class AbstractChatLongPoll(Thread):
                     self.event.payload = json.loads(payload)
                 self.messages = self.user.messages.getHistory(count=3)["items"]
                 self.last_message = self.messages[0]
-                self.attachments_last_message = ListExtension(self.last_message["attachments"])
+                self.attachments_last_message = ListExtension(
+                    self.last_message["attachments"])
                 self.parse_attachments()
                 try:
                     self.on_message(event)
                 except Exception as e:
-                    raise e 
+                    raise e
                 finally:
                     self.db.end_changes()
 

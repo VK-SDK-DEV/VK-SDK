@@ -65,17 +65,14 @@ class ImportTools(object):
             self.import_queue.remove(path)
             self.imported.add(path)
 
-    def reload(self, module):
+    def reload(self, module: str):
         """
         The reload function reloads a module. It takes in the name of the module as an argument and reloads it.
 
-        :param self: Used to Reference the class object.
         :param module: Used to Specify the module that is to be reloaded.
         :return: The module that was reloaded.
         """
-        for k, v in self.modules.items():
-            if k == module:
-                self.modules[k] = importlib.reload(v)
+        (module := self.modules.get(module)) and importlib.reload(module)
 
     def reload_all(self):
         """

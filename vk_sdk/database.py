@@ -237,7 +237,7 @@ class Struct(object):
         """
         attrs = {k: getattr(cls, k) for k in dir(cls)}
         return {k: v for k, v in attrs.items() if not k.startswith(
-                "__") and k not in ["table_name", "save_by", "initialized", "table_map", "use_db", "db", "old_struct"] and not callable(v)}
+                "__") and k not in ["table_name", "save_by", "initialized", "table_map", "use_db", "db", "old_struct"] and (not callable(v) or type(v) in jsonExtension.ExtensionBase.classes)}
 
     def fill(self, keys, getitemfrom):
         """Fills attributes mapped from list[str] keys to getitemfrom object to our Struct"""

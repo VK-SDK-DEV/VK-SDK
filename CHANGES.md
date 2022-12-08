@@ -1,3 +1,8 @@
+#1.9.1
+- [=] Database wasn't dumping extentions
+- [=] Minor refactor for imports module
+- [=] Attachment type of link was causing errors
+
 #1.9
 - [=] bump python dep
 - [=] fix recursive error

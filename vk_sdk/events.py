@@ -14,12 +14,13 @@ class Event(object):
             Event.callbacks[name].append(self)
         super().__init__()
 
+
 def on(name):
     """
     The on function is a decorator that registers an event handler.
     It takes the name of the event as its first argument, and a function as its second argument.
     The decorated function will be called whenever the named event is triggered.
-    
+
     :param name: Used to Identify the event.
     :return: A function that takes a function as an argument.
     """
@@ -27,11 +28,12 @@ def on(name):
         Event(name, func, "on")
     return func_wrap
 
+
 def once(name):
     """
     The once function is a decorator that will only call the decorated function once. 
     The decorated function will be called whenever the named event is triggered and then callback will be removed.
-    
+
     :param name: Used to Identify the event.
     :return: A function that takes a function as an argument.
     """

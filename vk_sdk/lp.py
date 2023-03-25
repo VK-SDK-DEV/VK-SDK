@@ -1,16 +1,14 @@
 import json
 import re
 
-from requests.adapters import HTTPAdapter, Retry
 import vk_api
+from requests.adapters import HTTPAdapter, Retry
 from vk_api.longpoll import VkEventType, VkLongPoll
 
-from . import (user, cmd, database, events)
-
+from . import cmd, database, events, imports, user
+from .database import config
 from .listExtension import ListExtension
 from .thread import Thread
-from .database import config
-from . import imports
 
 imports.ImportTools(["Structs"])
 
@@ -51,7 +49,8 @@ class AbstractChatLongPoll(Thread):
                 if attachment["url"] not in self.raw_text:
                     prepared = attachment["url"]
                     self.raw_text += f"\n{prepared}" if self.text else f"{prepared}"
-                    self.init_text(self.raw_text) # reset text because it sinks
+                    # reset text because it sinks
+                    self.init_text(self.raw_text)
                 continue
             if attachment_type != "sticker":
                 self.attachments.append(

@@ -43,7 +43,7 @@ class Timestamp(object):
         """
         The prettyprint function prints the contents of a object in a human-readable format.
            It is intended to be used for debugging purposes.
-        
+
         :param self: Used to Reference the object to which the function is attached.
         :return: A string representation of the object.
         """

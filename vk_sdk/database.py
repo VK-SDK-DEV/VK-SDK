@@ -31,17 +31,20 @@ DEFAULT_CONFIG = """
 }
 """
 
+
 def on_create_config():
     print("vk_sdk config created. Make sure to fill vk_api_key before running long pooling code. Happy coding!")
     os._exit(0)
 
-config = jsonExtension.loadAdvanced("config.json", content=DEFAULT_CONFIG, createCallback=on_create_config)
+
+config = jsonExtension.loadAdvanced(
+    "config.json", content=DEFAULT_CONFIG, createCallback=on_create_config)
 
 
 def attrgetter(x: Any): return getter(x, "value")
 
 
-def _formAndExpr(baseSql, argsList = None, getattrFrom = None, add = None):
+def _formAndExpr(baseSql, argsList=None, getattrFrom=None, add=None):
     """
     The formAndExpr function takes a baseSql string, an argsList list, and a getattrFrom object. It then adds the attributes from the add list to the baseSql string and appends their values to argsList.
     Used internally from module
@@ -117,7 +120,7 @@ class Struct(object):
     def __init_subclass__(cls) -> None:
         """
         The __init_subclass__ function is called when some class derives from our Struct
-        It’s purpose is to ensure that all subclasses of the base class have their own table_name and save_by attributes, 
+        It`s purpose is to ensure that all subclasses of the base class have their own table_name and save_by attributes, 
         and that they are kept in sync with the base class via an updated table_map.
 
         :param cls: Used to Access the class object.
@@ -134,7 +137,8 @@ class Struct(object):
         instance.setattr("old_struct", None, ignore_duplicates=False)
         if kwargs:
             expr = f"select * from {cls.table_name} where "
-            expr, args = _formAndExpr(expr, getattrFrom = kwargs, add = cls.save_by)
+            expr, args = _formAndExpr(
+                expr, getattrFrom=kwargs, add=cls.save_by)
             old_struct = cls.db.select_one_struct(expr, args)
             if old_struct is None and create_new is False:
                 return None
@@ -173,7 +177,8 @@ class Struct(object):
     @classmethod
     def select_all(cls, **kwargs):
         if len(kwargs) > 0:
-            expr, args = _formAndExpr(f"select * from {cls.table_name} where ", getattrFrom=kwargs, add = cls.save_by)
+            expr, args = _formAndExpr(
+                f"select * from {cls.table_name} where ", getattrFrom=kwargs, add=cls.save_by)
             return cls.db.select_all_structs(expr, args)
         else:
             return cls.db.select_all_structs(f"select * from {cls.table_name}")
@@ -182,13 +187,13 @@ class Struct(object):
     def row_at(cls, num):
         return cls.db.select_one_struct(f"select * from {cls.table_name} limit 1 offset {num}")
 
-    @classmethod 
+    @classmethod
     def first(cls): return cls.row_at(0)
 
     def boundStructByAction(self, key, data):
         """Bounds struct by action to a given data (list or dict). Struct by action will handle the watching on elements change."""
-        structByAction = jsonExtension.StructByAction(data, saver = lambda _: self.db.save_struct_by_action(_, 
-            self.table_name, key, self.save_by, self))
+        structByAction = jsonExtension.StructByAction(data, saver=lambda _: self.db.save_struct_by_action(_,
+                                                                                                          self.table_name, key, self.save_by, self))
         return structByAction
 
     def destroy(self):
@@ -196,7 +201,7 @@ class Struct(object):
         The destroy function deletes Struct record from db.
         """
         sql = f"delete from {self.table_name} where "
-        sql, lst = _formAndExpr(sql, getattrFrom = self, add = self.save_by)
+        sql, lst = _formAndExpr(sql, getattrFrom=self, add=self.save_by)
         self.db.execute(sql, lst)
 
     def setattr(self, key, value, write_to_database=True, ignore_duplicates=True):
@@ -242,8 +247,8 @@ class Struct(object):
     def fill(self, keys, getitemfrom):
         """Fills attributes mapped from list[str] keys to getitemfrom object to our Struct"""
         for k in keys:
-            value = jsonExtension.ExtensionBase.accept(getitemfrom[k], saver = lambda _: self.db.save_struct_by_action(_,
-            self.table_name, k, self.save_by, self))
+            value = jsonExtension.ExtensionBase.accept(getitemfrom[k], saver=lambda _: self.db.save_struct_by_action(_,
+                                                                                                                     self.table_name, k, self.save_by, self))
 
             if isinstance(getattr(self, k), bool):
                 value = self.str2bool(value)
@@ -282,7 +287,7 @@ class Database(object):
             db_short = os.path.basename(
                 os.path.splitext(file)[0])
             cls.db_cache[db_short] = instance  # short path
-            cls.db_name = db_short # instance.db_name ?
+            cls.db_name = db_short  # instance.db_name ?
             cls.db_cache[file] = instance
             return instance
         return instance

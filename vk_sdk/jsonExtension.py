@@ -89,6 +89,7 @@ class StructByAction(object):
 Indent = Optional[int]
 Dumpable = list | dict
 
+
 def save(file: str, obj: Dumpable, indent: Indent = None):
     with open(file, "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=indent)
@@ -99,7 +100,7 @@ def load(file: str, indent: Indent = None):
         return StructByAction(json.load(f), saver=lambda d: save(file, d, indent))
 
 
-def loadAdvanced(file: str, indent: Indent = None, content: Optional[str | dict] = None, createCallback = None):
+def loadAdvanced(file: str, indent: Indent = None, content: Optional[str | dict] = None, createCallback=None):
     _created = False
     if content is not None and not os.path.exists(file):
         _dir = os.path.dirname(file)
@@ -109,8 +110,8 @@ def loadAdvanced(file: str, indent: Indent = None, content: Optional[str | dict]
                 content, dict) else content
             f.write(content)
             _created = True
-    
+
     if _created and createCallback is not None:
         createCallback()
-        
+
     return load(file, indent)

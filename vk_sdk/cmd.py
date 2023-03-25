@@ -1,11 +1,10 @@
 """Module for managing commands"""
-
-
-# command + after func
 import difflib
 import inspect
+from dataclasses import dataclass
 from functools import partial
 from types import NoneType
+from typing import Callable
 
 from . import database
 from .listExtension import ListExtension
@@ -14,14 +13,14 @@ from .listExtension import ListExtension
 class AfterFunc(database.Struct):
     """Structure for AfterFuncs"""
     save_by = "user_id"
-    user_id = database.Sqlite3Property("", "not null unique")
+    user_id = ""
     after_name = ""
     args = []
 
 
 class Panels(database.Struct):
     save_by = "user_id"
-    user_id = database.Sqlite3Property("", "not null unique")
+    user_id = ""
     panel_name = ""
 
 
@@ -140,15 +139,12 @@ class Panel(object):
             self.command_poll.append(Command(name, aliases, fixTypo, func))
         return func_wrap
 
-# data class for commands
-
-
+@dataclass
 class Command(object):
-    def __init__(self, name, aliases, fixTypo, callableItem):
-        self.name = name
-        self.aliases = aliases
-        self.fixTypo = fixTypo
-        self.callable = callableItem
+    name: str
+    aliases: list[str]
+    fixTypo: bool
+    callable: Callable
 
 
 def wait(name, uID, function):

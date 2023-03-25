@@ -1,12 +1,11 @@
 import threading
 
-from . import events
-from . import listExtension
+from . import events, listExtension
 
 
 class ThreadManager(object):
     thread_poll = listExtension.ListExtension()
-    
+
     @classmethod
     def get_main_thread(cls):
         return cls.threadByName("Main")
@@ -65,7 +64,8 @@ def threaded(*args, **kwargs):
 
 class Every(Thread):
 
-    __slots__ = ('interval', 'stopped', 'event', 'onExecCallback', 'args', 'callback')
+    __slots__ = ('interval', 'stopped', 'event',
+                 'onExecCallback', 'args', 'callback')
 
     def __init__(self, interval, *args, onExecCallback=None, callback=None, **kwargs):
         if callback is not None:
@@ -86,7 +86,7 @@ class Every(Thread):
     def run(self):
         """
         The run function runs callback function. It checks for new tasks, and executes them.
-        
+
         :param self: Used to Access the class instance from within the function.
         """
         self.callback(*self.args)
@@ -103,7 +103,7 @@ def every(interval, *myArgs, callback=None, **myKwargs):
     The decorated function is called with the given arguments and keyword arguments, as well as any additional 
     arguments passed when calling the Every instance. The decorated function is called at first invocation 
     and then repeatedly every interval seconds, or with an optional initial delay.
-    
+
     :param interval: Used to Set the time interval between each execution of the function.
     :param *myArgs: Used to Pass arguments to the function that is being called.
     :param callback=None: Used to Pass a function to be called when the timer is executed.
@@ -115,7 +115,9 @@ def every(interval, *myArgs, callback=None, **myKwargs):
 
     return func_wrap
 
+
 main_thread = None
+
 
 @events.once("start")
 def update_main_thread():

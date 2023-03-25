@@ -6,7 +6,7 @@ from re import findall
 HERE = pathlib.Path(__file__).parent
 
 # The text of the README file
-README = (HERE / "README.md").read_text()
+README = (HERE / "README.md").read_text(encoding="utf-8")
 
 VERSION = findall(r"__version__ = '(.*)'", (HERE / "vk_sdk/__init__.py").read_text())[0]
 

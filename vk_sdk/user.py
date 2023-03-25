@@ -14,12 +14,12 @@ class User(MethodExecutor):
     user_id_methods = {
         "messages.getHistory": "user_id", "users.get": "user_ids"}
 
-    def __new__(cls, user_id, fields = None, **kwargs):
+    def __new__(cls, user_id, fields=None, **kwargs):
         """
         The __new__ function is the method called before __init__, it's used to create an instance of a class.
         It takes in cls (the class) as the first argument and returns an instance of that class.
         The __new__ function is also allowed to modify attributes on cls before returning the new object.
-        
+
         :param cls: Used to Refer to the class, not the instance.
         :param user_id: Used to Specify the user whose data we want to get.
         :param fields=None: Used to Get the fields from the vk api.
@@ -43,7 +43,7 @@ class User(MethodExecutor):
         except:
             return None
 
-    def __init__(self, user_id=None, fields = None, vk=None):
+    def __init__(self, user_id=None, fields=None, vk=None):
         """
         :param self: Used to Refer to the object itself.
         :param user_id=None: Used to Specify the user id.

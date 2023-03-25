@@ -1,11 +1,11 @@
-from vk_api.exceptions import ApiError
 from vk_api import VkApi
+from vk_api.exceptions import ApiError
 
 
 def empty(*args, **kwargs):
     """
     The empty function
-    
+
     :param *args: Used to Pass a non-keyworded, variable-length argument list.
     :param **kwargs: Used to Pass a keyworded, variable-length argument list.
     :return: "none".
@@ -27,7 +27,7 @@ class MethodExecutor(object):
         The __getattr__ function is called when an attribute is not found in the usual places 
         (__dict__, class tree). It can bebe used to delegate the lookup to another object (usually either 
         the superclass or a mixin) and/or try some dynamic approach (e.g., see this recipe).
-        
+
         :param self: Used to Access the class instance from within the method.
         :param method: Used to Determine which method is called.
         :return: A methodexecutor object.
@@ -67,7 +67,7 @@ class AuthBasedMethodExecutor(MethodExecutor):
         It initializes all of the variables in the class and can accept arguments that 
         are passed to it at creation time. In this case, we are creating an object that 
         contains a token and an invalid_callback function.
-        
+
         :param self: Used to Reference the class instance itself.
         :param token: Used to Authenticate the user through VK.
         :param invalid_callback=None: Used to Specify a function to call when the token is invalid.

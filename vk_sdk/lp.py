@@ -4,10 +4,10 @@ import re
 import vk_api
 from requests.adapters import HTTPAdapter, Retry
 from vk_api.longpoll import VkEventType, VkLongPoll
-
-from . import cmd, database, events, imports, user
+from types import LambdaType, NoneType
 from .database import config
-from .listExtension import ListExtension
+from . import cmd, database, events, imports, user, wait
+from jsonxx import ListX
 from .thread import Thread
 
 imports.ImportTools(["Structs"])
@@ -41,9 +41,9 @@ class AbstractChatLongPoll(Thread):
         for that particular attachment (i.e. attachment is public), then only the owner_id & attachment_id are used to create an 
         attachment string
         """
-        for attachmentList in self.attachments_last_message:
-            attachment_type = attachmentList['type']
-            attachment = attachmentList[attachment_type]
+        for attachment_list in self.attachments_last_message:
+            attachment_type = attachment_list['type']
+            attachment = attachment_list[attachment_type]
             access_key = attachment.get("access_key")
             if attachment_type == "link":
                 if attachment["url"] not in self.raw_text:
@@ -93,6 +93,9 @@ class AbstractChatLongPoll(Thread):
         """
         pass
 
+    def wait(self, text: LambdaType | str, lmbd : LambdaType | NoneType = None):
+        wait.wait(self.user.id, lmbd) if isinstance(text, str) else wait.wait(self.user.id, text)
+
     def init_text(self, raw_text):
         self.raw_text: str = raw_text
         self.text = self.raw_text.lower()
@@ -108,7 +111,7 @@ class AbstractChatLongPoll(Thread):
         for event in self.longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me and not event.from_me and not event.from_group and not event.from_chat:
                 self.db.begin_changes()
-                self.attachments = ListExtension()
+                self.attachments = ListX()
                 self.sticker_id = None
                 self.user = user.User(event.user_id, vk=self.vk)
                 self.init_text(event.message.strip())
@@ -117,7 +120,7 @@ class AbstractChatLongPoll(Thread):
                     self.event.payload = json.loads(payload)
                 self.messages = self.user.messages.getHistory(count=3)["items"]
                 self.last_message = self.messages[0]
-                self.attachments_last_message = ListExtension(
+                self.attachments_last_message = ListX(
                     self.last_message["attachments"])
                 self.parse_attachments()
                 try:
@@ -139,9 +142,6 @@ class BotLongPoll(AbstractChatLongPoll):
         imports.ImportTools(["packages", "Structs"])
         self.group_id = "-" + re.findall(r'\d+', self.longpoll.server)[0]
 
-    def wait(self, x, y):
-        return cmd.set_after(x, self.user.id, y)
-
     def set_after(self, x, y=None):
         if y is None:
             y = []
@@ -151,4 +151,5 @@ class BotLongPoll(AbstractChatLongPoll):
 
 
 class UserLongPoll(AbstractChatLongPoll):
-    pass
+    def __init__(self, config, **kwargs) -> None:
+        super().__init__(config, api_class=vk_api.VkApi, **kwargs)

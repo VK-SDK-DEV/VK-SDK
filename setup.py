@@ -19,7 +19,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/SPRAVEDLIVO/VK-SDK",
     author="SPRAVEDLIVO",
-    author_email="spravedlivo@dimden.dev",
+    author_email="admin@spravedlivo.dev",
     license="AGPLv3",
     packages=["vk_sdk"],
     python_requires='>=3.10',

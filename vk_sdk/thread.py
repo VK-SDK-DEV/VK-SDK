@@ -1,10 +1,12 @@
 import threading
 
-from . import events, listExtension
+from jsonxx import listx
+
+from . import events
 
 
 class ThreadManager(object):
-    thread_poll = listExtension.ListExtension()
+    thread_poll = listx.ListX()
 
     @classmethod
     def get_main_thread(cls):

@@ -7,7 +7,7 @@
 """
 
 __author__ = 'SPRAVEDLIVO'
-__version__ = '1.9.1'
+__version__ = '1.10'
 __email__ = 'admin@spravedlivo.dev'
 
 from .cmd import after_func, after_text_matcher, command, menu

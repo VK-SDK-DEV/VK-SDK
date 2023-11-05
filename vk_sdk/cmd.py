@@ -1,13 +1,14 @@
 """Module for managing commands"""
 import difflib
 import inspect
+import pickle
 from dataclasses import dataclass
 from functools import partial
-from types import NoneType
-from typing import Callable
+from types import CodeType, NoneType
+from typing import Callable, Iterable
 
 from . import database
-from .listExtension import ListExtension
+from jsonxx.listx import ListX
 
 
 class AfterFunc(database.Struct):
@@ -16,6 +17,7 @@ class AfterFunc(database.Struct):
     user_id = ""
     after_name = ""
     args = []
+    locals = bytes()
 
 
 class Panels(database.Struct):
@@ -24,7 +26,7 @@ class Panels(database.Struct):
     panel_name = ""
 
 
-class AbstractAfterFunc(object):
+class AbstractAfterFunc:
     def __new__(cls, name, func=None, circular=None):
         if (instance := after_func_poll.get(name)) is None:
             return super().__new__(cls)
@@ -43,6 +45,7 @@ class AbstractAfterFunc(object):
 
 command_poll = []  # MutableList<Command>
 after_func_poll = {}
+waiters = ListX()  # populated by wait module
 
 
 class CircularBuilder(object):
@@ -85,7 +88,7 @@ def _default_allow_enter(*args): return True
 
 class Panel(object):
 
-    panels = ListExtension()
+    panels = ListX()
 
     def __new__(cls, name, aliases=None, circular=None):
         if (panel := cls.find_panel(name)) is not None:
@@ -139,17 +142,13 @@ class Panel(object):
             self.command_poll.append(Command(name, aliases, fixTypo, func))
         return func_wrap
 
+
 @dataclass
 class Command(object):
     name: str
     aliases: list[str]
     fixTypo: bool
     callable: Callable
-
-
-def wait(name, uID, function):
-    after_func(name)(function)
-    set_after(name, uID)
 
 
 def command(name, fixTypo=True, aliases=None):
@@ -268,10 +267,15 @@ def execute_command(botClass):
 
             call = after_func.text_matchers.get(
                 botClass.text) or after_func.text_matchers.get("default")
+            if isinstance(call, CodeType) and selected.locals:
+                waiter = waiters.find(lambda it: it.name == tmpAfterName)
+                call = eval(call, pickle.loads(selected.locals), waiter.module.__dict__)
             if call is not None:
                 doNotReset = call(botClass) if not selected.args else call(
                     botClass, selected.args)
-                if doNotReset is None or call.__name__ == "<lambda>" or not isinstance(doNotReset, bool):
+                doNotReset = doNotReset[-1] if isinstance(
+                    doNotReset, Iterable) else doNotReset
+                if doNotReset is None or not isinstance(doNotReset, bool):
                     doNotReset = False
                 if doNotReset:
                     selected.after_name = tmpAfterName

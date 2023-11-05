@@ -9,7 +9,7 @@ class Keyboard(keyboard.VkKeyboard):
 
     def __new__(cls, buttons=None, **kwargs):
         if isinstance(buttons, cls):
-            return cls
+            return buttons
         return super().__new__(cls)
 
     def __init__(self, buttons=None, strategy="default", **kwargs):
@@ -36,6 +36,8 @@ class Keyboard(keyboard.VkKeyboard):
         :param inline=False: Used to Specify whether the buttons should be bounded to a message.
         :return: The object of the class.
         """
+        if hasattr(self, "lines") and len(self.lines) > 0:
+            return
         if buttons is None:
             buttons = []
         self.strategy = strategy

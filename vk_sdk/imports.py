@@ -40,11 +40,18 @@ class ImportOrder(object):
             return lsdir
 
 
-class ImportTools(object):
+class ImportTools:
     ignore = ["__pycache__"]
     imported = set()
     import_queue = set()
     modules = {}
+    _on_module = set()
+
+    @classmethod
+    def on_module(cls):
+        def func_wrap(func):
+            cls._on_module.add(func)
+        return func_wrap
 
     def __init__(self, paths=None):
         if paths is None:
@@ -99,6 +106,14 @@ class ImportTools(object):
         foo = util.module_from_spec(spec)
         spec.loader.exec_module(foo)
         cls.modules[path.replace(os.path.sep, "/")] = foo
+        source = None
+        for func in cls._on_module:
+            if len(inspect.signature(func).parameters) == 2:
+                if source is None:
+                    with open(spec.origin, encoding="utf-8_sig") as f:
+                        source = f.read()
+                func(foo, source)
+            else: func(foo)
         return foo
 
 

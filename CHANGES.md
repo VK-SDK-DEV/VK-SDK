@@ -1,3 +1,7 @@
+#1.10
+- [+] Wait engine!
+- [=] Move all json extensions to a separate module (jsonxx)
+
 #1.9.1
 - [=] Database wasn't dumping extentions
 - [=] Minor refactor for imports module

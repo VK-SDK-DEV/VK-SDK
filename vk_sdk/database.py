@@ -9,9 +9,10 @@ from sqlite3 import Row
 from sys import version_info
 from typing import Any, AnyStr, Iterable
 from warnings import warn
+import jsonxx
 
-from . import jsonExtension, thread, timeExtension
-from .listExtension import ListExtension
+from . import thread, timeExtension
+from jsonxx.listx import ListX
 
 
 def getter(x: Any, attr: AnyStr): return getattr(x, attr, x)
@@ -37,7 +38,7 @@ def on_create_config():
     os._exit(0)
 
 
-config = jsonExtension.loadAdvanced(
+config = jsonxx.load_advanced(
     "config.json", content=DEFAULT_CONFIG, createCallback=on_create_config)
 
 
@@ -57,7 +58,7 @@ def _formAndExpr(baseSql, argsList=None, getattrFrom=None, add=None):
     """
     method = getitem if isinstance(getattrFrom, dict) else getattr
     if argsList is None:
-        argsList = ListExtension()
+        argsList = ListX()
     if any([x is None for x in (getattrFrom, add)]):
         raise ValueError
     for i, k in enumerate(add):
@@ -85,12 +86,12 @@ def to_sneak_case(string):
 
 def convert_to_list_if_needed(element):
     if not isinstance(element, list):
-        return ListExtension([element])
+        return ListX([element])
     else:
-        return ListExtension(element)
+        return ListX(element)
 
 
-class Struct(object):
+class Struct:
     table_map = {}
 
     @classmethod
@@ -115,7 +116,13 @@ class Struct(object):
             return convert_to_list_if_needed(attrgetter(cls.save_by))
         for k, v in vars(cls).items():
             if isinstance(v, Sqlite3Property) and "unique" in v.type:
-                return ListExtension(k)
+                return ListX(k)
+
+    def __getstate__(self):
+        return _formAndExpr(f"select * from {self.table_name} where ", [], self, self.save_by)
+
+    def __setstate__(self, t):
+        return db.select_one_struct(t[0], t[1], fromSerialized=self)
 
     def __init_subclass__(cls) -> None:
         """
@@ -149,9 +156,9 @@ class Struct(object):
         if kwargs:
             for key, value in kwargs.items():
                 setattr(self, key, value)
-            if self.save_by.all(lambda it: it in kwargs.keys()):
+            if all(self.save_by.map(lambda it: it in kwargs.keys())):
                 if self.old_struct is None:
-                    keys, values = ListExtension(), ListExtension()
+                    keys, values = ListX(), ListX()
                     vrs = self.vars()
                     for key, value in vrs.items():
                         keys.append(key)
@@ -163,7 +170,7 @@ class Struct(object):
                     self.fill(variables.keys(), variables)
                 else:
                     keys = kwargs.keys()
-                    values = ListExtension(kwargs.values()).filter(
+                    values = ListX(kwargs.values()).find_all(
                         lambda it: it not in self.save_by)
                     d = dict(zip(keys, values))
                     for k, v in d.items():
@@ -178,7 +185,7 @@ class Struct(object):
     def select_all(cls, **kwargs):
         if len(kwargs) > 0:
             expr, args = _formAndExpr(
-                f"select * from {cls.table_name} where ", getattrFrom=kwargs, add=cls.save_by)
+                f"select * from {cls.table_name} where ", getattrFrom=kwargs, add=kwargs)
             return cls.db.select_all_structs(expr, args)
         else:
             return cls.db.select_all_structs(f"select * from {cls.table_name}")
@@ -192,7 +199,7 @@ class Struct(object):
 
     def boundStructByAction(self, key, data):
         """Bounds struct by action to a given data (list or dict). Struct by action will handle the watching on elements change."""
-        structByAction = jsonExtension.StructByAction(data, saver=lambda _: self.db.save_struct_by_action(_,
+        structByAction = jsonxx.JsonX(data, saver=lambda _: self.db.save_struct_by_action(_,
                                                                                                           self.table_name, key, self.save_by, self))
         return structByAction
 
@@ -223,7 +230,7 @@ class Struct(object):
         if prev == value and ignore_duplicates:
             return
         if write_to_database and getattr(self, "initialized", False):
-            if isinstance(prev, tuple(jsonExtension.ExtensionBase.classes.values())):
+            if isinstance(prev, tuple(jsonxx.ExtensionBase.classes.values())):
                 # resave
                 super().__setattr__(key, self.boundStructByAction(key, value))
                 getattr(self, key).save()
@@ -242,12 +249,12 @@ class Struct(object):
         """
         attrs = {k: getattr(cls, k) for k in dir(cls)}
         return {k: v for k, v in attrs.items() if not k.startswith(
-                "__") and k not in ["table_name", "save_by", "initialized", "table_map", "use_db", "db", "old_struct"] and (not callable(v) or type(v) in jsonExtension.ExtensionBase.classes)}
+                "__") and k not in ["table_name", "save_by", "initialized", "table_map", "use_db", "db", "old_struct"] and (not callable(v) or type(v) in jsonxx.ExtensionBase.classes)}
 
     def fill(self, keys, getitemfrom):
         """Fills attributes mapped from list[str] keys to getitemfrom object to our Struct"""
         for k in keys:
-            value = jsonExtension.ExtensionBase.accept(getitemfrom[k], saver=lambda _: self.db.save_struct_by_action(_,
+            value = jsonxx.JsonX.accept(getitemfrom[k], saver=lambda _: self.db.save_struct_by_action(_,
                                                                                                                      self.table_name, k, self.save_by, self))
 
             if isinstance(getattr(self, k), bool):
@@ -261,8 +268,7 @@ class Struct(object):
     def str2bool(self, v):
         if hasattr(v, "lower"):
             return v.lower() in ("true", "1")
-        else:
-            return v
+        return v
 
     def __repr__(self) -> str:
         return f"{self.table_name}({', '.join([f'{x}={y}' for x, y in self.vars().items()])})"
@@ -274,10 +280,10 @@ class Sqlite3Property(object):
         self.type = y
 
 
-class Database(object):
+class Database:
 
     typeToTypeCache = {str: "text", dict: "str", list: "str",
-                       float: "real", type(None): "null", int: "int", bool: "bool"}
+                       float: "real", type(None): "null", int: "int", bool: "bool", bytes: "blob"}
     db_cache = {}
 
     def __new__(cls, settings, **kwargs):
@@ -324,6 +330,7 @@ class Database(object):
             db = self
 
         for struct in Struct.table_map.values():
+            # TODO db detection got fucked, figure out why
             if not is_main_db and not hasattr(struct, "use_db") or hasattr(struct, "use_db") and self.db_cache[struct.use_db] != self:
                 return
             iterable = -1
@@ -342,7 +349,7 @@ class Database(object):
                 if field not in table_fields:
                     self.execute(
                         f"alter table {struct.table_name} add column {rows[iterable]}")
-            skipped_drop = ListExtension()
+            skipped_drop = ListX()
             for field in list(table_fields):
                 if field not in variables:
                     if SUPPORTS_DROP_COLUMNS or config.get("disable_column_drop_checks"):
@@ -368,7 +375,7 @@ class Database(object):
         manager.changeInterval(
             "Backup", self.settings["db_backup_interval"])
         backup_table = sqlite3.connect(
-            f"{self.backup_folder}backup_{timeExtension.now()}_{rawName}")
+            f"{self.backup_folder}backup_{timeExtension.Timestamp.now()}_{rawName}")
         self.db.backup(backup_table)
 
     def select(self, query: AnyStr, args=None):
@@ -393,7 +400,7 @@ class Database(object):
             sql, argsList, structToWrite, unique_fields)
         self.execute(sql, argsList)
 
-    def select_one_struct(self, query: AnyStr, *args: tuple or jsonExtension.StructByAction,
+    def select_one_struct(self, query: AnyStr, *args: tuple or jsonxx.JsonX,
                           selectedStruct: Row = None,
                           fromSerialized=None, table_name=None):
         table_name = self.parse_table_name(query, table_name)
@@ -412,9 +419,9 @@ class Database(object):
         myStruct.setattr("initialized", True, write_to_database=False)
         return myStruct
 
-    def select_all_structs(self, query: AnyStr, *args) -> ListExtension:
-        structs = ListExtension.byList(self.select(query, *args))
-        return ListExtension.byList([self.select_one_struct(query, *args, selectedStruct=x) for x in structs])
+    def select_all_structs(self, query: AnyStr, *args) -> ListX:
+        structs = ListX(self.select(query, *args))
+        return ListX([self.select_one_struct(query, *args, selectedStruct=x) for x in structs])
 
     def save_struct_by_action(self, value, table_name: AnyStr, key: Any,
                               unique_field: Iterable, parent_struct: Struct):
@@ -428,8 +435,8 @@ class Database(object):
         if args is None:
             args = []
         for i, k in enumerate(args):
-            if isinstance(k, tuple(jsonExtension.ExtensionBase.classes.values())):
-                args[i] = json.dumps(k)
+            if isinstance(k, tuple(jsonxx.ExtensionBase.classes.values())):
+                args[i] = jsonxx.JsonX(k).dumps()
         self.cursor.execute(query, args)
         if self.stash:
             self.need_commit = True

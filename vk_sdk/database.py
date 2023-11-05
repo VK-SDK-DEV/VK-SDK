@@ -330,9 +330,8 @@ class Database:
             db = self
 
         for struct in Struct.table_map.values():
-            # TODO db detection got fucked, figure out why
-            if not is_main_db and not hasattr(struct, "use_db") or hasattr(struct, "use_db") and self.db_cache[struct.use_db] != self:
-                return
+            if (not is_main_db and not hasattr(struct, "use_db")) or (hasattr(struct, "use_db") and self.db_cache[struct.use_db] != self):
+                continue
             iterable = -1
             rows = []
             struct.db = self
